@@ -6,9 +6,6 @@ const safetyCatch = require('safety-catch')
 const Backoff = require('./lib/backoff.js')
 const waitForRPC = require('./lib/wait-for-rpc.js')
 
-const { resolveStruct } = require('./spec/hyperschema')
-const PutNameRequest = resolveStruct('@hyperns/put-name-request')
-
 class ProtomuxRpcClient extends ReadyResource {
   constructor (serverKey, dht, opts = {}) {
     super()
@@ -152,17 +149,4 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 }
 
-class HyperNsClient extends ProtomuxRpcClient {
-  async putName (name, publicKey, blindPeers = []) {
-    publicKey = HypercoreId.decode(publicKey)
-    blindPeers = blindPeers.map(b => HypercoreId.decode(b))
-
-    await this._makeRequest(
-      'put-name',
-      { publicKey, name, blindPeers },
-      { requestEncoding: PutNameRequest, responseEncoding: c.none }
-    )
-  }
-}
-
-module.exports = HyperNsClient
+module.exports = ProtomuxRpcClient
