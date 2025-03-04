@@ -141,7 +141,7 @@ class ProtomuxRpcClient extends ReadyResource {
     // TODO: suspended case?
 
     // TODO: retry logic
-    await this.rpc.request(
+    return await this.rpc.request(
       methodName,
       args,
       { requestEncoding, responseEncoding }
