@@ -1,6 +1,6 @@
 # Protomux RPC Client
 
-Connect to [protomux-rpc](https://github.com/holepunchto/protomux-rpc).
+Connect to [HyperDHT](https://github.com/holepunchto/hyperdht) servers exposing [protomux-rpc](https://github.com/holepunchto/protomux-rpc) endpoints.
 
 Manages connection state for you, and will try re-connecting when the connection is lost.
 
