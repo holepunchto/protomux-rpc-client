@@ -6,6 +6,10 @@
   "scripts": {
     "test": "standard"
   },
+  "files": [
+    "index.js",
+    "lib/"
+  ]
   "repository": {
     "type": "git",
     "url": "git+https://github.com/holepunchto/protomux-rpc-client.git"
