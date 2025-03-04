@@ -36,7 +36,6 @@ async function main () {
       (req) => req
     )
   })
-  await new Promise(resolve => setTimeout(resolve, 1000))
 
   const dht = new HyperDHT({ bootstrap })
   const client = new MyClient(serverPubKey, dht)
