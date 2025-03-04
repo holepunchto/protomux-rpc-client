@@ -16,6 +16,7 @@ class MyClient extends ProtomuxRpcClient {
 }
 
 async function main () {
+  console.log('Running protomux-RPC client example')
   const testnet = await getTestnet()
   const { bootstrap } = testnet
 
