@@ -31,7 +31,7 @@ class MyClient extends ProtomuxRpcClient {
 Then create an instance of your client, so you can call its RPC methods:
 
 ```
-  const dht = new HyperDHT({ bootstrap })
+  const dht = new HyperDHT()
   const client = new MyClient(serverPubKey, dht)
   const res1 = await client.echo('ok')
   const res2 = await client.echo('also ok')
