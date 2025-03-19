@@ -5,7 +5,6 @@ const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const Backoff = require('./lib/backoff.js')
 const waitForRPC = require('./lib/wait-for-rpc.js')
-const HyperDHT = require('hyperdht')
 
 class ProtomuxRpcClient extends ReadyResource {
   constructor (serverKey, dht, opts = {}) {
@@ -15,12 +14,7 @@ class ProtomuxRpcClient extends ReadyResource {
     this.rpc = null
     this.dht = dht
     this.suspended = !!opts.suspended
-    this.accessSeed = opts.accessSeed
-      ? HypercoreId.decode(opts.accessSeed)
-      : null
-    this.keyPair = this.accessSeed
-      ? HyperDHT.keyPair(this.accessSeed)
-      : null
+    this.keyPair = opts.keyPair || null
 
     this.backoffValues = opts.backoffValues || [5000, 15000, 60000, 300000]
 

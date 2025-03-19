@@ -49,7 +49,7 @@ test('client can use accessSeed opt', async t => {
       (req) => req
     )
   })
-  const client = await getClient(t, bootstrap, serverPubKey, { accessSeed })
+  const client = await getClient(t, bootstrap, serverPubKey, { accessKeyPair })
 
   const res = await client.echo('ok')
   t.is(res, 'ok', 'rpc works (sanity check)')
@@ -95,9 +95,9 @@ async function getServer (t, bootstrap) {
   return { serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { accessSeed } = {}) {
+async function getClient (t, bootstrap, serverPubKey, { accessKeyPair } = {}) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { accessSeed })
+  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair })
 
   t.teardown(async () => {
     await client.close()
