@@ -18,7 +18,7 @@ test('client can connect to DHT server exposing rpc', async t => {
   t.is(res, 'ok', 'happy path works')
 })
 
-test('client can use accessSeed opt', async t => {
+test('client can use keyPair opt', async t => {
   t.plan(2)
 
   const bootstrap = await getBootstrap(t)
