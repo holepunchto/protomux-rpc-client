@@ -37,3 +37,12 @@ Then create an instance of your client, so you can call its RPC methods:
   const res2 = await client.echo('also ok')
   console.log(res1, res2) // ok also ok
 ```
+
+## API
+
+#### `const client = new ProtomuxRpcClient(serverPubKey, dht, opts)`
+
+Create a new Protomux RPC Client instance. `serverPubKey` is the public key of the RPC server to connect to and `dht` is a hyperDHT instance.
+
+`opts` include:
+- `keyPair`: use a specific keyPair to connect to the server, instead of the default one of the DHT instance.
