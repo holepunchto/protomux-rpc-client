@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/holepunchto/protomux-rpc-client#readme",
   "devDependencies": {
+    "b4a": "^1.6.7",
     "brittle": "^3.11.0",
     "hyperdht": "^6.20.1",
     "standard": "^17.1.2"
