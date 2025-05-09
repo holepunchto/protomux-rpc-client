@@ -15,6 +15,7 @@ class ProtomuxRpcClient extends ReadyResource {
     this.dht = dht
     this.suspended = !!opts.suspended
     this.keyPair = opts.keyPair || null
+    this.relayThrough = opts.relayThrough || null
 
     this.backoffValues = opts.backoffValues || [5000, 15000, 60000, 300000]
 
@@ -92,7 +93,7 @@ class ProtomuxRpcClient extends ReadyResource {
     while (!this.closing && !this.suspended) {
       if (this.dht.destroyed) return
 
-      const socket = this.dht.connect(this.serverKey, { keyPair: this.keyPair })
+      const socket = this.dht.connect(this.serverKey, { keyPair: this.keyPair, relayThrough: this.relayThrough })
 
       const rpc = new ProtomuxRPC(socket, {
         id: this.serverKey,
