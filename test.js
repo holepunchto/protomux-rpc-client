@@ -18,6 +18,21 @@ test('client can connect to DHT server exposing rpc', async t => {
   t.is(res, 'ok', 'happy path works')
 })
 
+test('client can pass relayThrough opt', async t => {
+  t.plan(2)
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+
+  const relayThrough = () => {
+    t.pass('connect through called')
+    return null
+  }
+  const client = await getClient(t, bootstrap, serverPubKey, { relayThrough })
+
+  const res = await client.echo('ok')
+  t.is(res, 'ok', 'happy path works')
+})
+
 test('client can use keyPair opt', async t => {
   t.plan(2)
 
@@ -95,9 +110,9 @@ async function getServer (t, bootstrap) {
   return { serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { accessKeyPair } = {}) {
+async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair } = {}) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair })
+  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough })
 
   t.teardown(async () => {
     await client.close()

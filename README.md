@@ -46,3 +46,4 @@ Create a new Protomux RPC Client instance. `serverPubKey` is the public key of t
 
 `opts` include:
 - `keyPair`: use a specific keyPair to connect to the server, instead of the default one of the DHT instance.
+- `relayThrough`: a function passed on to HyperDHT's `connect` method, to help relay when relevant. Default: `null`.
