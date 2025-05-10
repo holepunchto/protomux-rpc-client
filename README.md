@@ -47,3 +47,78 @@ Create a new Protomux RPC Client instance. `serverPubKey` is the public key of t
 `opts` include:
 - `keyPair`: use a specific keyPair to connect to the server, instead of the default one of the DHT instance.
 - `relayThrough`: a function passed on to HyperDHT's `connect` method, to help relay when relevant. Default: `null`.
+- `backoffValues`: an array of millisecond delays on reconnection attempts. The delay values are jittered. Default: `[5000, 15000, 60000, 300000]`.
+- `suspended`: a boolean for whether the client should be suspended on creation. Default: `false`
+
+#### `client.stream`
+
+The stream used by the client.
+
+#### `client.key`
+
+The stream's public key. `null` if the stream has not been set yet.
+
+#### `client.opened`
+
+Whether the client is opened as a boolean.
+
+#### `client.closed`
+
+Whether the client is closed as a boolean.
+
+#### `client.suspended`
+
+Whether the client is currently suspended as a boolean.
+
+#### `client.dht`
+
+The HyperDHT instance used to create the RPC client.
+
+#### `await client._makeRequest(methodName, args, opts)`
+
+Creates a request (connecting if necessary) returning the response.
+
+This can be used to create custom RPC methods on a custom client that extends the `ProtomuxRpcClient` class. `methodName` is a unique string that represents the method. `args` is the value(s) the method is called with.
+
+Options:
+
+```
+{
+  requestEncoding, // Used to encode the `args`. Default: `c.buffer`
+  responseEncoding, // Used to decode the response
+}
+```
+
+Example:
+
+```js
+class MyClient extends ProtomuxRpcClient {
+  async myRequest () {
+    return await this._makeRequest(
+      'ping', // The RPC method name
+      'boop', // The RPC method parameters
+      { requestEncoding: cenc.string, responseEncoding: cenc.string }
+    )
+  }
+}
+```
+
+#### `await client.connect()`
+
+Attempt to connect to the `serverPubKey`.
+
+#### `await client.suspend()`
+
+Suspends the RPC client destroying the RPC channel.
+
+#### `await client.resume()`
+
+Resumes a suspended RPC client by reconnecting.
+
+#### `await client.close()`
+
+Close the RPC client.
+
+#### `client.on('stream', (stream) => {})`
+
+The `stream` events emits the RPC's stream when it is setup.
