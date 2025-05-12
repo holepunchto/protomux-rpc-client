@@ -131,6 +131,12 @@ class ProtomuxRpcClient extends ReadyResource {
     socket.once('close', () => this.connect().catch(safetyCatch))
   }
 
+  async makeRequest (methodName, args, { requestEncoding, responseEncoding }) {
+    return await this._makeRequest(methodName, args, { requestEncoding, responseEncoding })
+  }
+
+  // Deprecated, just use makeRequest in the next major
+  // (no point in having this private)
   async _makeRequest (methodName, args, { requestEncoding, responseEncoding }) {
     if (this.opened === false) await this.opening
 
