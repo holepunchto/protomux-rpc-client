@@ -74,11 +74,9 @@ Whether the client is currently suspended as a boolean.
 
 The HyperDHT instance used to create the RPC client.
 
-#### `await client._makeRequest(methodName, args, opts)`
+#### `await client.makeRequest(methodName, args, opts)`
 
-Creates a request (connecting if necessary) returning the response.
-
-This can be used to create custom RPC methods on a custom client that extends the `ProtomuxRpcClient` class. `methodName` is a unique string that represents the method. `args` is the value(s) the method is called with.
+Creates a request (connecting if necessary) returning the response. `methodName` is a unique string that represents the method. `args` is the value(s) the method is called with.
 
 Options:
 
@@ -88,6 +86,9 @@ Options:
   responseEncoding, // Used to decode the response
 }
 ```
+
+This method can be called directly on a `ProtomuxRpcClient` instance, specifying the method name, its arguments and the encodings. Another good pattern is to subclass the `ProtomuxRpcClient` class and to define a function for each endpoint which calls `makeRequest` with the correct encodings and function name. That way these details are abstracted from the consumer of your API.
+
 
 Example:
 
