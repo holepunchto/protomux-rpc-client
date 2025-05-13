@@ -124,7 +124,7 @@ async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyP
 
 class EchoClient extends ProtomuxRpcClient {
   async echo (text) {
-    return await this._makeRequest(
+    return await this.makeRequest(
       'echo',
       text,
       { requestEncoding: cenc.string, responseEncoding: cenc.string }

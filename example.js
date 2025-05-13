@@ -7,7 +7,7 @@ const ProtomuxRpcClient = require('.')
 
 class MyClient extends ProtomuxRpcClient {
   async echo (text) {
-    return await this._makeRequest(
+    return await this.makeRequest(
       'echo', // The RPC method name
       text, // The RPC method parameters
       { requestEncoding: cenc.string, responseEncoding: cenc.string }
