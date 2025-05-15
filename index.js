@@ -140,7 +140,7 @@ class ProtomuxRpcClient extends ReadyResource {
 
     while ((!this.rpc || this.rpc.closed) && !this.closing) {
       await this.connect()
-      if (this.suspended) await this._suspendedSignal.wait()
+      while (this.suspended && !this.closing) await this._suspendedSignal.wait()
     }
 
     if (this.closing) return

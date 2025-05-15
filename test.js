@@ -103,6 +103,23 @@ test('start suspended flow', async t => {
   t.is(res, 'ok', 'correct response (sanity check)')
 })
 
+test('request resolves without return value if closed while suspended', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  await client.suspend()
+  const p = client.echo('ok')
+  p.catch(e => {
+    console.error(e)
+    t.fail('request should not error when closing')
+  })
+  await new Promise(resolve => setTimeout(resolve, 100))
+  await client.close()
+
+  await t.execution(async () => await p, 'no error on uncompleted request when closing')
+})
+
 async function getBootstrap (t) {
   const testnet = await getTestnet()
   const { bootstrap } = testnet
