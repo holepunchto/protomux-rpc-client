@@ -52,8 +52,6 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async close () {
-    // DEVNOTE: don't do anything async here, since
-    // this.closing is set only after super.close() is called
     this._backoff.destroy()
     if (this.rpc) this.rpc.destroy()
     if (this._pendingRPC) this._pendingRPC.destroy()
@@ -146,7 +144,6 @@ class ProtomuxRpcClient extends ReadyResource {
     }
 
     if (this.closing) return
-    // TODO: suspended case?
 
     // TODO: retry logic
     return await this.rpc.request(
