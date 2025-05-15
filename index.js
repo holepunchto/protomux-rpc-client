@@ -3,6 +3,7 @@ const c = require('compact-encoding')
 const HypercoreId = require('hypercore-id-encoding')
 const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
+const Signal = require('signal-promise')
 const Backoff = require('./lib/backoff.js')
 const waitForRPC = require('./lib/wait-for-rpc.js')
 
@@ -23,8 +24,7 @@ class ProtomuxRpcClient extends ReadyResource {
     this._backoff = new Backoff(this.backoffValues)
 
     this._pendingRPC = null
-    this._suspendedResolve = null
-    this._suspendedProm = this.suspended ? new Promise(resolve => { this._suspendedResolve = resolve }) : null
+    this._suspendedSignal = new Signal()
 
     this.ready().catch(safetyCatch)
   }
@@ -32,16 +32,9 @@ class ProtomuxRpcClient extends ReadyResource {
   async suspend () {
     if (this.suspended) return
     this.suspended = true
-    this._suspendedProm = new Promise(resolve => { this._suspendedResolve = resolve })
     this._backoff.destroy()
-    if (this.rpc) {
-      this.rpc.destroy()
-      this.rpc = null
-    }
-    if (this._pendingRPC) {
-      this._pendingRPC.destroy()
-      this._pendingRPC = null
-    }
+    if (this.rpc) this.rpc.destroy()
+    if (this._pendingRPC) this._pendingRPC.destroy()
     await this.connect() // flush
   }
 
@@ -50,9 +43,7 @@ class ProtomuxRpcClient extends ReadyResource {
     this.suspended = false
     this._backoff = new Backoff(this.backoffValues)
     this.connect().catch(safetyCatch) // bg resume
-    this._suspendedResolve()
-    this._suspendedProm = null
-    this._suspendedResolve = null
+    this._suspendedSignal.notify()
   }
 
   async _open () {
@@ -61,14 +52,17 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async close () {
+    // DEVNOTE: don't do anything async here, since
+    // this.closing is set only after super.close() is called
     this._backoff.destroy()
-    this.rpc.destroy()
+    if (this.rpc) this.rpc.destroy()
     if (this._pendingRPC) this._pendingRPC.destroy()
     return super.close()
   }
 
   async _close () {
     if (this._connecting) await this._connecting // Debounce
+    this._suspendedSignal.notify() // flush any pending requests
   }
 
   get key () {
@@ -146,9 +140,9 @@ class ProtomuxRpcClient extends ReadyResource {
   async _makeRequest (methodName, args, { requestEncoding, responseEncoding }) {
     if (this.opened === false) await this.opening
 
-    while (!this.rpc && !this.closing) {
+    while ((!this.rpc || this.rpc.closed) && !this.closing) {
       await this.connect()
-      if (this.suspended) await this._suspendedProm
+      if (this.suspended) await this._suspendedSignal.wait()
     }
 
     if (this.closing) return
