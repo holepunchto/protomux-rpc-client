@@ -85,6 +85,24 @@ test('suspend/resume flow', async t => {
   t.is(res, 'ok', 'can send a request after resuming')
 })
 
+test('start suspended flow', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey, { suspended: true })
+
+  t.is(client.suspended, true, 'can start suspended')
+
+  const startTime = Date.now()
+  setTimeout(async () => await client.resume(), 500)
+
+  const res = await client.echo('ok')
+  t.is(client.suspended, false, 'request got processed after clientresumed')
+
+  const runTime = Date.now() - startTime
+  t.is(runTime > 500, true, 'sanity check: did not make request before resume triggered')
+  t.is(res, 'ok', 'correct response (sanity check)')
+})
+
 async function getBootstrap (t) {
   const testnet = await getTestnet()
   const { bootstrap } = testnet
@@ -125,9 +143,9 @@ async function getServer (t, bootstrap) {
   return { serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair } = {}) {
+async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended } = {}) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough })
+  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough, suspended })
 
   t.teardown(async () => {
     await client.close()
