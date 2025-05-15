@@ -70,6 +70,21 @@ test('client can use keyPair opt', async t => {
   t.is(res, 'ok', 'rpc works (sanity check)')
 })
 
+test('suspend/resume flow', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  t.is(client.suspended, false, 'default not suspended upon creation')
+  await client.suspend()
+  t.is(client.suspended, true, 'suspended state updated after suspend')
+  await client.resume()
+  t.is(client.suspended, false, 'suspended state updated after resume')
+
+  const res = await client.echo('ok')
+  t.is(res, 'ok', 'can send a request after resuming')
+})
+
 async function getBootstrap (t) {
   const testnet = await getTestnet()
   const { bootstrap } = testnet

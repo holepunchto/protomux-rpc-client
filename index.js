@@ -34,8 +34,14 @@ class ProtomuxRpcClient extends ReadyResource {
     this.suspended = true
     this._suspendedProm = new Promise(resolve => { this._suspendedResolve = resolve })
     this._backoff.destroy()
-    if (this.rpc) this.rpc.destroy()
-    if (this._pendingRPC) this._pendingRPC.destroy()
+    if (this.rpc) {
+      this.rpc.destroy()
+      this.rpc = null
+    }
+    if (this._pendingRPC) {
+      this._pendingRPC.destroy()
+      this._pendingRPC = null
+    }
     await this.connect() // flush
   }
 
