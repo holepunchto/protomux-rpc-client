@@ -49,6 +49,7 @@ Create a new Protomux RPC Client instance. `serverPubKey` is the public key of t
 - `relayThrough`: a function passed on to HyperDHT's `connect` method, to help relay when relevant. Default: `null`.
 - `backoffValues`: an array of millisecond delays on reconnection attempts. The delay values are jittered. Default: `[5000, 15000, 60000, 300000]`.
 - `suspended`: a boolean for whether the client should be suspended on creation. Default: `false`
+- `requestTimeout` default time (in ms) before a request rejects with a timeout error. Default 10000.
 
 #### `client.stream`
 
@@ -84,6 +85,7 @@ Options:
 {
   requestEncoding, // Used to encode the `args`. Default: `c.buffer`
   responseEncoding, // Used to decode the response
+  timeout // time (in ms) before a request rejects with a timeout error. Defaults to the requestTimeout.
 }
 ```
 
