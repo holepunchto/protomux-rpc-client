@@ -7,6 +7,7 @@ const Signal = require('signal-promise')
 const rrp = require('resolve-reject-promise')
 const Backoff = require('./lib/backoff.js')
 const waitForRPC = require('./lib/wait-for-rpc.js')
+const Errors = require('./lib/errors.js')
 
 class ProtomuxRpcClient extends ReadyResource {
   constructor (serverKey, dht, opts = {}) {
@@ -145,7 +146,7 @@ class ProtomuxRpcClient extends ReadyResource {
     // which triggers the finally that clears the timeout
     const { resolve, reject, promise } = rrp()
     const timer = setTimeout(
-      () => { reject(new Error('Protomux RPC request timeout')) },
+      () => { reject(Errors.REQUEST_TIMEOUT()) },
       timeout
     )
     promise.catch(safetyCatch) // no unhandleds

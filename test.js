@@ -77,14 +77,14 @@ test('client timeout opt (connecting hangs)', async t => {
 
   await t.exception(
     async () => { await client.echo('ok') },
-    /request timeout/,
+    /REQUEST_TIMEOUT:/,
     'Cannot connect => request timeout error'
   )
 
   const startTime = Date.now()
   await t.exception(
     async () => { await client.makeRequest('echo', 'oh', { timeout: 1000, requestEncoding: cenc.string, responseEncoding: cenc.string }) },
-    /request timeout/,
+    /REQUEST_TIMEOUT:/,
     'can specify timeout'
   )
   t.is(Date.now() > startTime + 500, true, 'can override timeout in makeRequest call')
@@ -102,7 +102,7 @@ test('client timeout opt (slow RPC)', async t => {
 
   await t.exception(
     async () => { await client.echo('ok') },
-    /request timeout/,
+    /REQUEST_TIMEOUT:/,
     'slow RPC => timeout'
   )
 
