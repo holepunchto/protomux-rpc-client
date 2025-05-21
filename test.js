@@ -70,6 +70,59 @@ test('client can use keyPair opt', async t => {
   t.is(res, 'ok', 'rpc works (sanity check)')
 })
 
+test('client timeout opt (connecting hangs)', async t => {
+  const bootstrap = await getBootstrap(t)
+  const unavailableKey = b4a.from('a'.repeat(64), 'hex')
+  const client = await getClient(t, bootstrap, unavailableKey, { requestTimeout: 250 })
+
+  await t.exception(
+    async () => { await client.echo('ok') },
+    /request timeout/,
+    'Cannot connect => request timeout error'
+  )
+
+  const startTime = Date.now()
+  await t.exception(
+    async () => { await client.makeRequest('echo', 'oh', { timeout: 1000, requestEncoding: cenc.string, responseEncoding: cenc.string }) },
+    /request timeout/,
+    'can specify timeout'
+  )
+  t.is(Date.now() > startTime + 500, true, 'can override timeout in makeRequest call')
+})
+
+test('client timeout opt (slow RPC)', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey, server } = await getServer(t, bootstrap, { delay: 1000 })
+  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 250 })
+
+  let connected = false
+  server.on('connection', () => {
+    connected = true
+  })
+
+  await t.exception(
+    async () => { await client.echo('ok') },
+    /request timeout/,
+    'slow RPC => timeout'
+  )
+
+  t.is(connected, true, 'the client did connect (sanity check)')
+})
+
+test('pending requests do not delay closing', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap, { delay: 100_000_000 })
+  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 100_000_000 })
+
+  await client.ready()
+
+  const reqProm = client.echo('ok') // hangs
+  const res = await Promise.allSettled([reqProm, client.close()])
+  t.is(res[0].status, 'rejected', 'pending request rejects')
+
+  // Also implicit assertion that the test does not timeout (which would indicate a timer still exists)
+})
+
 test('suspend/resume flow', async t => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
@@ -134,7 +187,7 @@ async function getBootstrap (t) {
   return bootstrap
 }
 
-async function getServer (t, bootstrap) {
+async function getServer (t, bootstrap, { delay = null } = {}) {
   const serverDht = new HyperDHT({ bootstrap })
   const server = serverDht.createServer()
   await server.listen()
@@ -149,7 +202,10 @@ async function getServer (t, bootstrap) {
     rpc.respond(
       'echo',
       { requestEncoding: cenc.string, responseEncoding: cenc.string },
-      (req) => req
+      async (req) => {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay))
+        return req
+      }
     )
   })
 
@@ -157,12 +213,12 @@ async function getServer (t, bootstrap) {
     await serverDht.destroy()
   }, { order: 900 })
 
-  return { serverDht, serverPubKey }
+  return { server, serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended } = {}) {
+async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended, requestTimeout } = {}) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough, suspended })
+  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough, suspended, requestTimeout })
 
   t.teardown(async () => {
     await client.close()

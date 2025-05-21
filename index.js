@@ -4,6 +4,7 @@ const HypercoreId = require('hypercore-id-encoding')
 const ReadyResource = require('ready-resource')
 const safetyCatch = require('safety-catch')
 const Signal = require('signal-promise')
+const rrp = require('resolve-reject-promise')
 const Backoff = require('./lib/backoff.js')
 const waitForRPC = require('./lib/wait-for-rpc.js')
 
@@ -17,6 +18,7 @@ class ProtomuxRpcClient extends ReadyResource {
     this.suspended = !!opts.suspended
     this.keyPair = opts.keyPair || null
     this.relayThrough = opts.relayThrough || null
+    this.requestTimeout = opts.requestTimeout || 10000
 
     this.backoffValues = opts.backoffValues || [5000, 15000, 60000, 300000]
 
@@ -129,14 +131,42 @@ class ProtomuxRpcClient extends ReadyResource {
     socket.once('close', () => this.connect().catch(safetyCatch))
   }
 
-  async makeRequest (methodName, args, { requestEncoding, responseEncoding }) {
-    return await this._makeRequest(methodName, args, { requestEncoding, responseEncoding })
+  async makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+    return await this._makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
   }
 
   // Deprecated, just use makeRequest in the next major
   // (no point in having this private)
-  async _makeRequest (methodName, args, { requestEncoding, responseEncoding }) {
-    if (this.opened === false) await this.opening
+  async _makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+    timeout = timeout || this.requestTimeout
+
+    // DEVNOTE: there is no need to track timers at object level (to clear them on close):
+    // closing causes the RPC clients to close, causing the request to reject
+    // which triggers the finally that clears the timeout
+    const { resolve, reject, promise } = rrp()
+    const timer = setTimeout(
+      () => { reject(new Error('Protomux RPC request timeout')) },
+      timeout
+    )
+    promise.catch(safetyCatch) // no unhandleds
+
+    const reqProm = this._connectAndSendRequest(
+      methodName,
+      args,
+      { requestEncoding, responseEncoding }
+    )
+    reqProm.catch(safetyCatch) // no unhandleds
+
+    try {
+      return await Promise.race([reqProm, promise])
+    } finally {
+      clearTimeout(timer)
+      resolve()
+    }
+  }
+
+  async _connectAndSendRequest (methodName, args, { requestEncoding, responseEncoding }) {
+    if (!this.opened) await this.ready()
 
     while ((!this.rpc || this.rpc.closed) && !this.closing) {
       await this.connect()
