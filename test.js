@@ -110,17 +110,18 @@ test('client timeout opt (slow RPC)', async t => {
 })
 
 test('pending requests do not delay closing', async t => {
+  // If this test hangs on teardown, this indicates an issue with the cleanup logic
+  // like pending timers etc (equivalent to a failing test)
+
   const bootstrap = await getBootstrap(t)
-  const { serverPubKey } = await getServer(t, bootstrap, { delay: 100_000_000 })
-  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 100_000_000 })
+  const { serverPubKey } = await getServer(t, bootstrap, { delay: 1000 * 60 * 60 * 24 })
+  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 1000 * 60 * 60 * 24 })
 
   await client.ready()
 
   const reqProm = client.echo('ok') // hangs
   const res = await Promise.allSettled([reqProm, client.close()])
   t.is(res[0].status, 'rejected', 'pending request rejects')
-
-  // Also implicit assertion that the test does not timeout (which would indicate a timer still exists)
 })
 
 test('suspend/resume flow', async t => {

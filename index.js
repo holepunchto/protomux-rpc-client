@@ -154,7 +154,7 @@ class ProtomuxRpcClient extends ReadyResource {
     const reqProm = this._connectAndSendRequest(
       methodName,
       args,
-      { requestEncoding, responseEncoding }
+      { requestEncoding, responseEncoding, rpcTimeout: timeout } // Pass on the same timeout, so the RPC request does not stay pending forever after our timeout triggered
     )
     reqProm.catch(safetyCatch) // no unhandleds
 
@@ -166,7 +166,7 @@ class ProtomuxRpcClient extends ReadyResource {
     }
   }
 
-  async _connectAndSendRequest (methodName, args, { requestEncoding, responseEncoding }) {
+  async _connectAndSendRequest (methodName, args, { requestEncoding, responseEncoding, rpcTimeout }) {
     if (!this.opened) await this.ready()
 
     while ((!this.rpc || this.rpc.closed) && !this.closing) {
@@ -180,7 +180,7 @@ class ProtomuxRpcClient extends ReadyResource {
     return await this.rpc.request(
       methodName,
       args,
-      { requestEncoding, responseEncoding }
+      { requestEncoding, responseEncoding, timeout: rpcTimeout }
     )
   }
 }
