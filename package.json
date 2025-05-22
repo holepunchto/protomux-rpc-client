@@ -1,6 +1,6 @@
 {
   "name": "protomux-rpc-client",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Connect to protomux-rpc servers",
   "main": "index.js",
   "scripts": {
