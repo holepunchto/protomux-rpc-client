@@ -117,7 +117,7 @@ test('pending requests do not delay closing', async t => {
   const { serverPubKey } = await getServer(t, bootstrap, { delay: 1000 * 60 * 60 * 24 })
   const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 1000 * 60 * 60 * 24 })
 
-  await client.ready()
+  await client.connect()
 
   const reqProm = client.echo('ok') // hangs
   const res = await Promise.allSettled([reqProm, client.close()])

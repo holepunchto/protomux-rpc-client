@@ -45,23 +45,18 @@ class ProtomuxRpcClient extends ReadyResource {
     if (!this.suspended) return
     this.suspended = false
     this._backoff = new Backoff(this.backoffValues)
-    this.connect().catch(safetyCatch) // bg resume
     this._suspendedSignal.notify()
   }
 
   async _open () {
-    await Promise.resolve() // allow a tick to train so users can attach listeners
-    await this.connect()
-  }
-
-  async close () {
-    this._backoff.destroy()
-    if (this.rpc) this.rpc.destroy()
-    if (this._pendingRPC) this._pendingRPC.destroy()
-    return super.close()
+    // no need to set anything up (the connection is opened lazily)
   }
 
   async _close () {
+    this._backoff.destroy()
+    if (this.rpc) this.rpc.destroy()
+    if (this._pendingRPC) this._pendingRPC.destroy()
+
     if (this._connecting) await this._connecting // Debounce
     this._suspendedSignal.notify() // flush any pending requests
   }
@@ -75,6 +70,8 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async connect () {
+    if (!this.opened) await this.ready()
+
     if (this._connecting) return this._connecting
 
     this._connecting = this._connect()
@@ -133,12 +130,15 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+    if (!this.opened) await this.ready()
     return await this._makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
   }
 
   // Deprecated, just use makeRequest in the next major
   // (no point in having this private)
   async _makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+    if (!this.opened) await this.ready()
+
     timeout = timeout || this.requestTimeout
 
     // DEVNOTE: there is no need to track timers at object level (to clear them on close):
@@ -167,8 +167,6 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async _connectAndSendRequest (methodName, args, { requestEncoding, responseEncoding, rpcTimeout }) {
-    if (!this.opened) await this.ready()
-
     while ((!this.rpc || this.rpc.closed) && !this.closing) {
       await this.connect()
       while (this.suspended && !this.closing) await this._suspendedSignal.wait()
@@ -176,7 +174,6 @@ class ProtomuxRpcClient extends ReadyResource {
 
     if (this.closing) return
 
-    // TODO: retry logic
     return await this.rpc.request(
       methodName,
       args,
