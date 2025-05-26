@@ -2,7 +2,7 @@
 
 Connect to [HyperDHT](https://github.com/holepunchto/hyperdht) servers exposing [protomux-rpc](https://github.com/holepunchto/protomux-rpc) endpoints.
 
-Manages connection state for you, and will try re-connecting when the connection is lost.
+Manages connection state for you: connections are opened lazily, when the first request is made. The client will try re-connecting when the connection is lost. 
 
 ## Install
 
@@ -108,7 +108,7 @@ class MyClient extends ProtomuxRpcClient {
 
 #### `await client.connect()`
 
-Attempt to connect to the `serverPubKey`.
+Attempt to connect to the `serverPubKey`. Normally, there is no need to call this method directly (it is called under the hood by `client.makeRequest(...)`)
 
 #### `await client.suspend()`
 
