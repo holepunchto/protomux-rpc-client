@@ -2,7 +2,7 @@
 
 Connect to [HyperDHT](https://github.com/holepunchto/hyperdht) servers exposing [protomux-rpc](https://github.com/holepunchto/protomux-rpc) endpoints.
 
-Manages connection state for you: connections are opened lazily, when the first request is made. The client will try re-connecting when the connection is lost. 
+Manages connection state for you: connections are opened lazily, when the first request is made, and the client will try re-connecting when the connection is lost. 
 
 ## Install
 
