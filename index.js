@@ -1,184 +1,123 @@
-const ProtomuxRPC = require('protomux-rpc')
-const c = require('compact-encoding')
-const HypercoreId = require('hypercore-id-encoding')
 const ReadyResource = require('ready-resource')
+const IdEnc = require('hypercore-id-encoding')
 const safetyCatch = require('safety-catch')
-const Signal = require('signal-promise')
-const rrp = require('resolve-reject-promise')
-const Backoff = require('./lib/backoff.js')
-const waitForRPC = require('./lib/wait-for-rpc.js')
-const Errors = require('./lib/errors.js')
+const Client = require('./lib/client')
+
+class ClientRef {
+  constructor (client) {
+    this.client = client
+    this.lastUsed = Date.now()
+    this.refs = 1
+  }
+
+  bumpLastUsed () {
+    this.lastUsed = Date.now()
+  }
+
+  addRef () {
+    this.refs++
+  }
+
+  unref () {
+    this.refs--
+  }
+}
 
 class ProtomuxRpcClient extends ReadyResource {
-  constructor (serverKey, dht, opts = {}) {
+  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null } = {}) {
     super()
 
-    this.serverKey = HypercoreId.decode(serverKey)
-    this.rpc = null
     this.dht = dht
-    this.suspended = !!opts.suspended
-    this.keyPair = opts.keyPair || null
-    this.relayThrough = opts.relayThrough || null
-    this.requestTimeout = opts.requestTimeout || 10000
+    this.msGcInterval = msGcInterval
+    this.relayThrough = relayThrough
+    this.suspended = suspended
 
-    this.backoffValues = opts.backoffValues || [5000, 15000, 60000, 300000]
+    this._clientRefs = new Map()
+    this._gcInterval = null
+  }
 
-    this._connecting = null
-    this._backoff = new Backoff(this.backoffValues)
+  get nrClients () {
+    return this._clientRefs.size
+  }
 
-    this._pendingRPC = null
-    this._suspendedSignal = new Signal()
+  async _open () {
+    this._gcInterval = setInterval(
+      this.gc.bind(this), this.msGcInterval
+    )
+  }
 
-    this.ready().catch(safetyCatch)
+  async _close () {
+    clearInterval(this._gcInterval)
+
+    const proms = []
+    for (const { client } of this._clientRefs.values()) {
+      proms.push(client.close())
+    }
+    await Promise.all(proms)
+  }
+
+  _getClient (key) {
+    if (this.closing) throw new Error('Closing')
+
+    const id = IdEnc.normalize(key)
+    let ref = this._clientRefs.get(id)
+    if (ref) {
+      ref.bumpLastUsed()
+      ref.refs++
+      return ref
+    }
+
+    const opts = { relayThrough: this.relayThrough, suspended: this.suspended }
+    const client = new Client(key, this.dht, opts)
+    ref = new ClientRef(client)
+    this._clientRefs.set(id, ref)
+    return ref
+  }
+
+  gc () {
+    const removed = []
+    const minTime = Date.now() - this.msGcInterval
+
+    for (const [id, { client, lastUsed, refs }] of this._clientRefs) {
+      if (refs > 0) continue
+      if (lastUsed >= minTime) continue
+      removed.push(id)
+      client.close().catch(safetyCatch)
+    }
+
+    for (const r of removed) this._clientRefs.delete(r)
+    if (removed.length > 0) this.emit('gc', removed.length)
   }
 
   async suspend () {
     if (this.suspended) return
     this.suspended = true
-    this._backoff.destroy()
-    if (this.rpc) this.rpc.destroy()
-    if (this._pendingRPC) this._pendingRPC.destroy()
-    await this.connect() // flush
+    const proms = []
+    for (const ref of this._clientRefs.values()) {
+      proms.push(ref.client.suspend())
+    }
+    await Promise.all(proms)
   }
 
   async resume () {
     if (!this.suspended) return
     this.suspended = false
-    this._backoff = new Backoff(this.backoffValues)
-    this._suspendedSignal.notify()
+    const proms = []
+    for (const ref of this._clientRefs.values()) {
+      proms.push(ref.client.resume())
+    }
+    await Promise.all(proms)
   }
 
-  async _open () {
-    // no need to set anything up (the connection is opened lazily)
-  }
-
-  async _close () {
-    this._backoff.destroy()
-    if (this.rpc) this.rpc.destroy()
-    if (this._pendingRPC) this._pendingRPC.destroy()
-
-    if (this._connecting) await this._connecting // Debounce
-    this._suspendedSignal.notify() // flush any pending requests
-  }
-
-  get key () {
-    return this.rpc?.stream.publicKey || null
-  }
-
-  get stream () {
-    return this.rpc?.stream || null
-  }
-
-  async connect () {
+  async makeRequest (key, methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
     if (!this.opened) await this.ready()
 
-    if (this._connecting) return this._connecting
-
-    this._connecting = this._connect()
-
+    const ref = this._getClient(key)
     try {
-      await this._connecting
+      return await ref.client.makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
     } finally {
-      this._connecting = null
+      ref.unref()
     }
-  }
-
-  async _connect () {
-    if (this.rpc && !this.rpc.closed) return
-
-    this._backoff.reset()
-
-    while (!this.closing && !this.suspended) {
-      if (this.dht.destroyed) return
-
-      const socket = this.dht.connect(this.serverKey, { keyPair: this.keyPair, relayThrough: this.relayThrough })
-
-      const rpc = new ProtomuxRPC(socket, {
-        id: this.serverKey,
-        valueEncoding: c.none
-      })
-      rpc.once('close', () => socket.destroy())
-
-      // always set this so we can nuke it if we want
-      this._pendingRPC = rpc
-
-      // Only the first time, set it without waiting
-      if (this.rpc === null) {
-        this.rpc = rpc
-      }
-      this.emit('stream', rpc.stream)
-
-      try {
-        await waitForRPC(rpc)
-        this._pendingRPC = null
-        this.rpc = rpc
-        break
-      } catch (err) {
-        safetyCatch(err)
-        this._pendingRPC = null
-
-        if (this.closing || this.suspended) return
-
-        await this._backoff.run()
-      }
-    }
-
-    if (this.closing || this.suspended) return
-
-    const socket = this.rpc.stream
-    socket.once('close', () => this.connect().catch(safetyCatch))
-  }
-
-  async makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
-    if (!this.opened) await this.ready()
-    return await this._makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
-  }
-
-  // Deprecated, just use makeRequest in the next major
-  // (no point in having this private)
-  async _makeRequest (methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
-    if (!this.opened) await this.ready()
-
-    timeout = timeout || this.requestTimeout
-
-    // DEVNOTE: there is no need to track timers at object level (to clear them on close):
-    // closing causes the RPC clients to close, causing the request to reject
-    // which triggers the finally that clears the timeout
-    const { resolve, reject, promise } = rrp()
-    const timer = setTimeout(
-      () => { reject(Errors.REQUEST_TIMEOUT()) },
-      timeout
-    )
-    promise.catch(safetyCatch) // no unhandleds
-
-    const reqProm = this._connectAndSendRequest(
-      methodName,
-      args,
-      { requestEncoding, responseEncoding, rpcTimeout: timeout } // Pass on the same timeout, so the RPC request does not stay pending forever after our timeout triggered
-    )
-    reqProm.catch(safetyCatch) // no unhandleds
-
-    try {
-      return await Promise.race([reqProm, promise])
-    } finally {
-      clearTimeout(timer)
-      resolve()
-    }
-  }
-
-  async _connectAndSendRequest (methodName, args, { requestEncoding, responseEncoding, rpcTimeout }) {
-    while ((!this.rpc || this.rpc.closed) && !this.closing) {
-      await this.connect()
-      while (this.suspended && !this.closing) await this._suspendedSignal.wait()
-    }
-
-    if (this.closing) return
-
-    return await this.rpc.request(
-      methodName,
-      args,
-      { requestEncoding, responseEncoding, timeout: rpcTimeout }
-    )
   }
 }
 

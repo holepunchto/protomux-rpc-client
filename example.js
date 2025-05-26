@@ -5,9 +5,15 @@ const getTestnet = require('hyperdht/testnet')
 
 const ProtomuxRpcClient = require('.')
 
-class MyClient extends ProtomuxRpcClient {
+class EchoClient {
+  constructor (key, rpcClient) {
+    this.key = key
+    this.rpcClient = rpcClient
+  }
+
   async echo (text) {
-    return await this.makeRequest(
+    return await this.rpcClient.makeRequest(
+      this.key,
       'echo', // The RPC method name
       text, // The RPC method parameters
       { requestEncoding: cenc.string, responseEncoding: cenc.string }
@@ -39,9 +45,9 @@ async function main () {
   })
 
   const dht = new HyperDHT({ bootstrap })
-  const client = new MyClient(serverPubKey, dht)
-
-  const res = await client.echo('ok')
+  const client = new ProtomuxRpcClient(dht)
+  const echoClient = new EchoClient(serverPubKey, client)
+  const res = await echoClient.echo('ok')
   console.log('Server replied with', res)
 
   await client.close()

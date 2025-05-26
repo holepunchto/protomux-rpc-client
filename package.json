@@ -4,7 +4,7 @@
   "description": "Connect to protomux-rpc servers",
   "main": "index.js",
   "scripts": {
-    "test": "standard && brittle test.js && node example.js"
+    "test": "standard && brittle test/* && node example.js"
   },
   "files": [
     "index.js",
