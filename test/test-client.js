@@ -5,7 +5,7 @@ const HyperDHT = require('hyperdht')
 const getTestnet = require('hyperdht/testnet')
 const b4a = require('b4a')
 
-const ProtomuxRpcClient = require('.')
+const ProtomuxRpcClient = require('../lib/client')
 
 const DEBUG = false
 
