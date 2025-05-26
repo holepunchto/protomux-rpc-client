@@ -174,6 +174,25 @@ test('request resolves without return value if closed while suspended', async t 
   await t.execution(async () => await p, 'no error on uncompleted request when closing')
 })
 
+test.solo('server sends event to client', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey, getRpc } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  await client.echo('ok')
+
+  const eventReceived = promiseWithResolvers()
+  client.rpc.on('testEvent', (value) => {
+    t.is(value, 'testValue')
+    eventReceived.resolve()
+  })
+
+  const rpc = await getRpc()
+  rpc.event('testEvent', 'testValue', { valueEncoding: cenc.string })
+
+  await eventReceived.promise
+})
+
 async function getBootstrap (t) {
   const testnet = await getTestnet()
   const { bootstrap } = testnet
@@ -194,6 +213,7 @@ async function getServer (t, bootstrap, { delay = null } = {}) {
   await server.listen()
   const { publicKey: serverPubKey } = server.address()
 
+  const rpcPromise = promiseWithResolvers()
   server.on('connection', c => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
     const rpc = new ProtomuxRPC(c, {
@@ -208,13 +228,15 @@ async function getServer (t, bootstrap, { delay = null } = {}) {
         return req
       }
     )
+    rpcPromise.resolve(rpc)
   })
 
   t.teardown(async () => {
     await serverDht.destroy()
   }, { order: 900 })
 
-  return { server, serverDht, serverPubKey }
+  const getRpc = () => rpcPromise.promise
+  return { server, serverDht, serverPubKey, getRpc }
 }
 
 async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended, requestTimeout } = {}) {
@@ -237,4 +259,14 @@ class EchoClient extends ProtomuxRpcClient {
       { requestEncoding: cenc.string, responseEncoding: cenc.string }
     )
   }
+}
+
+function promiseWithResolvers () {
+  let resolve = () => undefined
+  let reject = () => undefined
+  const promise = new Promise((_resolve, _reject) => {
+    resolve = _resolve
+    reject = _reject
+  })
+  return { promise, resolve, reject }
 }
