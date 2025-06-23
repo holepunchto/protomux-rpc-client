@@ -27,7 +27,7 @@ test('client can pass relayThrough opt', async t => {
     t.pass('connect through called')
     return null
   }
-  const client = await getClient(t, bootstrap, serverPubKey, { relayThrough })
+  const client = await getClient(t, bootstrap, serverPubKey, { relayThrough, backoffValues: [5000, 15000, 60000, 300000] })
 
   const res = await client.echo('ok')
   t.is(res, 'ok', 'happy path works')
@@ -73,10 +73,10 @@ test('client can use keyPair opt', async t => {
 test('client timeout opt (connecting hangs)', async t => {
   const bootstrap = await getBootstrap(t)
   const unavailableKey = b4a.from('a'.repeat(64), 'hex')
-  const client = await getClient(t, bootstrap, unavailableKey, { requestTimeout: 250 })
+  const client = await getClient(t, bootstrap, unavailableKey)
 
   await t.exception(
-    async () => { await client.echo('ok') },
+    async () => { await client.echo('ok', { timeout: 250 }) },
     /REQUEST_TIMEOUT:/,
     'Cannot connect => request timeout error'
   )
@@ -93,7 +93,7 @@ test('client timeout opt (connecting hangs)', async t => {
 test('client timeout opt (slow RPC)', async t => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey, server } = await getServer(t, bootstrap, { delay: 1000 })
-  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 250 })
+  const client = await getClient(t, bootstrap, serverPubKey)
 
   let connected = false
   server.on('connection', () => {
@@ -101,7 +101,7 @@ test('client timeout opt (slow RPC)', async t => {
   })
 
   await t.exception(
-    async () => { await client.echo('ok') },
+    async () => { await client.echo('ok', { timeout: 250 }) },
     /REQUEST_TIMEOUT:/,
     'slow RPC => timeout'
   )
@@ -217,9 +217,9 @@ async function getServer (t, bootstrap, { delay = null } = {}) {
   return { server, serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended, requestTimeout } = {}) {
+async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyPair, suspended } = {}) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough, suspended, requestTimeout })
+  const client = new EchoClient(serverPubKey, dht, { keyPair: accessKeyPair, relayThrough, suspended, backoffValues: [5000, 15000, 60000, 300000] })
 
   t.teardown(async () => {
     await client.close()
@@ -230,11 +230,11 @@ async function getClient (t, bootstrap, serverPubKey, { relayThrough, accessKeyP
 }
 
 class EchoClient extends ProtomuxRpcClient {
-  async echo (text) {
+  async echo (text, opts = {}) {
     return await this.makeRequest(
       'echo',
       text,
-      { requestEncoding: cenc.string, responseEncoding: cenc.string }
+      { requestEncoding: cenc.string, responseEncoding: cenc.string, ...opts }
     )
   }
 }

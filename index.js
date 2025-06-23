@@ -24,19 +24,22 @@ class ClientRef {
 }
 
 class ProtomuxRpcClient extends ReadyResource {
-  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null } = {}) {
-    super()
+  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair, requestTimeout = 10000, backoffValues } = {}) {
+    super({ suspended })
 
     this.dht = dht
     this.msGcInterval = msGcInterval
     this.relayThrough = relayThrough
     this.suspended = suspended
+    this.keyPair = keyPair
+    this.requestTimeout = requestTimeout
+    this.backoffValues = backoffValues || [5000, 15000, 60000, 300000]
 
     this._clientRefs = new Map()
     this._gcInterval = null
   }
 
-  get nrClients () {
+  get nrConnections () {
     return this._clientRefs.size
   }
 
@@ -67,7 +70,12 @@ class ProtomuxRpcClient extends ReadyResource {
       return ref
     }
 
-    const opts = { relayThrough: this.relayThrough, suspended: this.suspended }
+    const opts = {
+      relayThrough: this.relayThrough,
+      suspended: this.suspended,
+      keyPair: this.keyPair,
+      backoffValues: this.backoffValues
+    }
     const client = new Client(key, this.dht, opts)
     ref = new ClientRef(client)
     this._clientRefs.set(id, ref)
@@ -106,6 +114,7 @@ class ProtomuxRpcClient extends ReadyResource {
   }
 
   async makeRequest (key, methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+    timeout = timeout || this.requestTimeout
     if (!this.opened) await this.ready()
 
     const ref = this._getClient(key)

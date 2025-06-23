@@ -2,7 +2,11 @@
 
 Connect to [HyperDHT](https://github.com/holepunchto/hyperdht) servers exposing [protomux-rpc](https://github.com/holepunchto/protomux-rpc) endpoints.
 
-Manages connection state for you: connections are opened lazily, when the first request is made, and the client will try re-connecting when the connection is lost. 
+Manages connection state for you:
+- Connections are opened lazily, when the first request is made
+- The client will try re-connecting when the connection is lost
+- Connections are automatically garbage-collected after a period of inactivity
+- Supports suspend and resume functionality (for suspending network activity, such as when backgrounding on a phone)
 
 ## Install
 
@@ -12,37 +16,15 @@ npm i protomux-rpc-client
 
 ## Usage
 
-Define a new class which extends `ProtomuxRpcClient`, as in the [example](example.js).
+For a quick-and-dirty client, simply initialise a `ProtomuxRpcClient` object, and call its `makeRequest` method (see API section for the contract).
 
-Then expose each RPC method as a separate function which calls `this.makeRequest`, specifying the RPC-method name, the parameters and the encodings. For example:
-
-```
-class MyClient extends ProtomuxRpcClient {
-  async echo (text) {
-    return await this.makeRequest(
-      'echo', // The RPC method name
-      text, // The RPC method parameters
-      { requestEncoding: cenc.string, responseEncoding: cenc.string }
-    )
-  }
-}
-```
-
-Then create an instance of your client, so you can call its RPC methods:
-
-```
-  const dht = new HyperDHT()
-  const client = new MyClient(serverPubKey, dht)
-  const res1 = await client.echo('ok')
-  const res2 = await client.echo('also ok')
-  console.log(res1, res2) // ok also ok
-```
+For a cleaner approach, define a new class which exposes the available methods, abstracting away the encodings from the user. See the [example](example.js).
 
 ## API
 
-#### `const client = new ProtomuxRpcClient(serverPubKey, dht, opts)`
+#### `const client = new ProtomuxRpcClient(dht, opts)`
 
-Create a new Protomux RPC Client instance. `serverPubKey` is the public key of the RPC server to connect to and `dht` is a hyperDHT instance.
+Create a new Protomux RPC Client instance. `dht` is a hyperDHT instance.
 
 `opts` include:
 - `keyPair`: use a specific keyPair to connect to the server, instead of the default one of the DHT instance.
@@ -50,14 +32,7 @@ Create a new Protomux RPC Client instance. `serverPubKey` is the public key of t
 - `backoffValues`: an array of millisecond delays on reconnection attempts. The delay values are jittered. Default: `[5000, 15000, 60000, 300000]`.
 - `suspended`: a boolean for whether the client should be suspended on creation. Default: `false`
 - `requestTimeout` default time (in ms) before a request rejects with a timeout error. Default 10000.
-
-#### `client.stream`
-
-The stream used by the client.
-
-#### `client.key`
-
-The stream's public key. `null` if the stream has not been set yet.
+- `msGcInterval`: how often to run the garbage collection. Connections are kept open for at least `msGcInterval` ms of inactivity.
 
 #### `client.opened`
 
@@ -73,11 +48,15 @@ Whether the client is currently suspended as a boolean.
 
 #### `client.dht`
 
-The HyperDHT instance used to create the RPC client.
+The HyperDHT instance used to make connections.
 
-#### `await client.makeRequest(methodName, args, opts)`
+#### `client.nrConnections`
 
-Creates a request (connecting if necessary) returning the response. `methodName` is a unique string that represents the method. `args` is the value(s) the method is called with.
+The number of servers with which the client is currently attempting to keep connections open.
+
+#### `await client.makeRequest(key, methodName, args, opts)`
+
+Creates a request to the server listening at the specified `key` (connecting if necessary) returning the response. `methodName` is a unique string that represents the method. `args` is the value(s) the method is called with.
 
 Options:
 
@@ -89,39 +68,22 @@ Options:
 }
 ```
 
-This method can be called directly on a `ProtomuxRpcClient` instance, specifying the method name, its arguments and the encodings. Another good pattern is to subclass the `ProtomuxRpcClient` class and to define a function for each endpoint which calls `makeRequest` with the correct encodings and function name. That way these details are abstracted from the consumer of your API.
-
-
-Example:
-
-```js
-class MyClient extends ProtomuxRpcClient {
-  async myRequest () {
-    return await this.makeRequest(
-      'ping', // The RPC method name
-      'boop', // The RPC method parameters
-      { requestEncoding: cenc.string, responseEncoding: cenc.string }
-    )
-  }
-}
-```
-
-#### `await client.connect()`
-
-Attempt to connect to the `serverPubKey`. Normally, there is no need to call this method directly (it is called under the hood by `client.makeRequest(...)`)
-
 #### `await client.suspend()`
 
-Suspends the RPC client destroying the RPC channel.
+Suspends all open RPC clients, destroying their RPC channel.
 
 #### `await client.resume()`
 
-Resumes a suspended RPC client by reconnecting.
+Resumes all suspended RPC clients by reconnecting.
 
 #### `await client.close()`
 
-Close the RPC client.
+Close all RPC clients and clean up.
 
-#### `client.on('stream', (stream) => {})`
+#### `await client.gc()`
 
-The `stream` events emits the RPC's stream when it is setup.
+Forces a garbage collection. Normally never needed, since garbage collection runs at regular intervals.
+
+#### `client.on('gc', (nrRemoved) => {})`
+
+The `gc` events are emitted whenever one or more clients are garbage colllected. `nrRemoved` indicates the amount of gc'd clients.
