@@ -89,9 +89,7 @@ class ProtomuxRpcClient extends ReadyResource {
     if (removed.length > 0) this.emit('gc', removed.length)
   }
 
-  async suspend () {
-    if (this.suspended) return
-    this.suspended = true
+  async _suspend () {
     const proms = []
     for (const ref of this._clientRefs.values()) {
       proms.push(ref.client.suspend())
@@ -99,9 +97,7 @@ class ProtomuxRpcClient extends ReadyResource {
     await Promise.all(proms)
   }
 
-  async resume () {
-    if (!this.suspended) return
-    this.suspended = false
+  async _resume () {
     const proms = []
     for (const ref of this._clientRefs.values()) {
       proms.push(ref.client.resume())
