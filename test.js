@@ -18,6 +18,18 @@ test('client can connect to DHT server exposing rpc', async t => {
   t.is(res, 'ok', 'happy path works')
 })
 
+test('client can close also if it never connects', async t => {
+  const bootstrap = await getBootstrap(t)
+  const serverPubKey = b4a.from('a'.repeat(64), 'hex')
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  const p = client.echo('ok')
+  p.catch(() => {})
+  await new Promise(resolve => setTimeout(resolve, 500))
+  await client.close()
+  t.pass('closing did not hang')
+})
+
 test('client can pass relayThrough opt', async t => {
   t.plan(2)
   const bootstrap = await getBootstrap(t)
