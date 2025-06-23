@@ -211,8 +211,7 @@ test('relayThrough opt', async t => {
   const bootstrap = await setupTestnet(t)
   const { server } = await setupRpcServer(t, bootstrap)
 
-  const relayThrough = (...args) => {
-    console.trace(args)
+  const relayThrough = () => {
     t.pass('relay through called')
     return null
   }
@@ -312,7 +311,7 @@ async function setupTestnet (t) {
   const testnet = await createTestnet()
   t.teardown(async () => {
     await testnet.destroy()
-  }, { order: 1000 })
+  }, { order: 1000_000 })
   return testnet.bootstrap
 }
 
@@ -344,7 +343,7 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0 } = {}) {
 
   t.teardown(async () => {
     await dht.destroy()
-  })
+  }, { order: 100 })
 
   await server.listen()
   return { server, getNrCons: () => nrCons }
