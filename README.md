@@ -78,7 +78,7 @@ Resumes all suspended RPC clients by reconnecting.
 
 #### `await client.close()`
 
-Close all RPC clients and clean up.
+Closes all RPC clients and cleans up.
 
 #### `await client.gc()`
 
