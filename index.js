@@ -1,4 +1,4 @@
-const ReadyResource = require('ready-resource')
+const SuspendResource = require('suspend-resource')
 const IdEnc = require('hypercore-id-encoding')
 const safetyCatch = require('safety-catch')
 const Client = require('./lib/client')
@@ -23,14 +23,13 @@ class ClientRef {
   }
 }
 
-class ProtomuxRpcClient extends ReadyResource {
+class ProtomuxRpcClient extends SuspendResource {
   constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair, requestTimeout = 10000, backoffValues } = {}) {
     super({ suspended })
 
     this.dht = dht
     this.msGcInterval = msGcInterval
     this.relayThrough = relayThrough
-    this.suspended = suspended
     this.keyPair = keyPair
     this.requestTimeout = requestTimeout
     this.backoffValues = backoffValues || [5000, 15000, 60000, 300000]
