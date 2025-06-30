@@ -4,7 +4,7 @@
   "description": "Connect to protomux-rpc servers",
   "main": "index.js",
   "scripts": {
-    "test": "standard && brittle test.js && node example.js"
+    "test": "standard && brittle test/* && node example.js"
   },
   "files": [
     "index.js",
@@ -34,7 +34,7 @@
     "compact-encoding": "^2.16.0",
     "hypercore-id-encoding": "^1.3.0",
     "protomux-rpc": "^1.7.1",
-    "ready-resource": "^1.1.2",
+    "suspend-resource": "^1.0.0",
     "resolve-reject-promise": "^1.1.0",
     "safety-catch": "^1.0.2",
     "signal-promise": "^1.0.3"
