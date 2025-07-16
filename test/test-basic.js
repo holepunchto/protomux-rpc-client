@@ -295,6 +295,52 @@ test('requestTimeout opt', async t => {
   }
 })
 
+test('One server exposing multiple rpc services', async t => {
+  const bootstrap = await setupTestnet(t)
+  const extraIds = [b4a.from('1')]
+  const { server, getNrCons } = await setupRpcServer(t, bootstrap, { extraIds, extraProtocols: ['extra-protocol'] })
+
+  const clientDht = new HyperDHT({ bootstrap })
+  const statelessRpc = new ProtomuxRpcClient(clientDht, { msGcInterval: 500 })
+  t.teardown(async () => {
+    await statelessRpc.close()
+    await clientDht.destroy()
+  })
+
+  {
+    const res = await statelessRpc.makeRequest(
+      server.publicKey,
+      'echo',
+      b4a.from('hi'),
+      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+    )
+    t.is(b4a.toString(res), 'hi', 'default protocol and id')
+    t.is(getNrCons(), 1, '1 connection opened')
+  }
+
+  {
+    const res = await statelessRpc.makeRequest(
+      server.publicKey,
+      'echo',
+      b4a.from('hi'),
+      { id: extraIds[0], requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+    )
+    t.is(b4a.toString(res), 'Id: 1 res: hi', 'rpc request processed successfully')
+    t.is(getNrCons(), 2, 'separate connection')
+  }
+
+  {
+    const res = await statelessRpc.makeRequest(
+      server.publicKey,
+      'echo',
+      b4a.from('hi'),
+      { protocol: 'extra-protocol', requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+    )
+    t.is(b4a.toString(res), 'Protocol: extra-protocol res: hi', 'rpc request processed successfully')
+    t.is(getNrCons(), 3, 'separate connection')
+  }
+})
+
 function getRpcClient (t, bootstrap, opts = {}) {
   const dht = new HyperDHT({ bootstrap })
   const rpcClient = new ProtomuxRpcClient(dht, opts)
@@ -315,9 +361,12 @@ async function setupTestnet (t) {
   return testnet.bootstrap
 }
 
-async function setupRpcServer (t, bootstrap, { msDelay = 0 } = {}) {
+async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extraProtocols = [] } = {}) {
   const dht = new HyperDHT({ bootstrap })
   const server = dht.createServer()
+
+  await server.listen()
+  const { publicKey: serverPubKey } = server.address()
 
   let nrCons = 0
 
@@ -328,7 +377,7 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0 } = {}) {
     }
     nrCons++
     const rpc = new ProtomuxRPC(conn, {
-      id: server.publicKey,
+      id: serverPubKey,
       valueEncoding: cenc.none
 
     })
@@ -338,13 +387,45 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0 } = {}) {
       async (req) => {
         if (msDelay > 0) await new Promise(resolve => setTimeout(resolve, msDelay))
         return req
+      }
+    )
+
+    for (const id of extraIds) {
+      console.log('setting up id', id)
+      const rpcI = new ProtomuxRPC(conn, {
+        id,
+        valueEncoding: cenc.none
       })
+      rpcI.respond(
+        'echo',
+        { requestEncoding: cenc.string, responseEncoding: cenc.string },
+        async (req) => {
+          if (msDelay) await new Promise(resolve => setTimeout(resolve, msDelay))
+          return `Id: ${id} res: ${req}`
+        }
+      )
+    }
+
+    for (const protocol of extraProtocols) {
+      const rpcI = new ProtomuxRPC(conn, {
+        id: serverPubKey,
+        protocol,
+        valueEncoding: cenc.none
+      })
+      rpcI.respond(
+        'echo',
+        { requestEncoding: cenc.string, responseEncoding: cenc.string },
+        async (req) => {
+          if (msDelay) await new Promise(resolve => setTimeout(resolve, msDelay))
+          return `Protocol: ${protocol} res: ${req}`
+        }
+      )
+    }
   })
 
   t.teardown(async () => {
     await dht.destroy()
   }, { order: 100 })
 
-  await server.listen()
   return { server, getNrCons: () => nrCons }
 }

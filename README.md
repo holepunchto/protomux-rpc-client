@@ -64,6 +64,8 @@ Options:
 {
   requestEncoding, // Used to encode the `args`. Default: `c.buffer`
   responseEncoding, // Used to decode the response
+  id, // id of the protomux-rpc service
+  protocol, // protocol of the protomux-rpc service. Defaults to the server's public key.
   timeout // time (in ms) before a request rejects with a timeout error. Defaults to the requestTimeout.
 }
 ```

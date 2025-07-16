@@ -58,11 +58,17 @@ class ProtomuxRpcClient extends SuspendResource {
     await Promise.all(proms)
   }
 
-  _getClient (key) {
+  _getClient (key, protocol, id) {
     if (this.closing) throw new Error('Closing')
 
-    const id = IdEnc.normalize(key)
-    let ref = this._clientRefs.get(id)
+    // DEVNOTE: when a single server exposes multiple RPC services,
+    // we get a fully separate client for each service (with distinct protocols and ids).
+    // Every client will open its own socket and manage its own state.
+    // Note: can be changed later if there is a usecase (inefficient socket use),
+    // but it avoids a lot of complexity (no need for ref counting)
+    const uid = `${IdEnc.normalize(key)}-protocol-${protocol || ''}-id-${id || ''}`
+
+    let ref = this._clientRefs.get(uid)
     if (ref) {
       ref.bumpLastUsed()
       ref.refs++
@@ -73,11 +79,13 @@ class ProtomuxRpcClient extends SuspendResource {
       relayThrough: this.relayThrough,
       suspended: this.suspended,
       keyPair: this.keyPair,
-      backoffValues: this.backoffValues
+      backoffValues: this.backoffValues,
+      id,
+      protocol
     }
     const client = new Client(key, this.dht, opts)
     ref = new ClientRef(client)
-    this._clientRefs.set(id, ref)
+    this._clientRefs.set(uid, ref)
     return ref
   }
 
@@ -112,11 +120,11 @@ class ProtomuxRpcClient extends SuspendResource {
     await Promise.all(proms)
   }
 
-  async makeRequest (key, methodName, args, { requestEncoding, responseEncoding, timeout } = {}) {
+  async makeRequest (key, methodName, args, { requestEncoding, responseEncoding, timeout, protocol, id } = {}) {
     timeout = timeout || this.requestTimeout
     if (!this.opened) await this.ready()
 
-    const ref = this._getClient(key)
+    const ref = this._getClient(key, protocol, id)
     try {
       return await ref.client.makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
     } finally {
