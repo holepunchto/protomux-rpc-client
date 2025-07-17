@@ -35,7 +35,7 @@ async function main () {
     console.log('server opened connection')
     const rpc = new ProtomuxRPC(c, {
       id: serverPubKey,
-      valueEncoding: c.none
+      valueEncoding: cenc.none
     })
     rpc.respond(
       'echo',
