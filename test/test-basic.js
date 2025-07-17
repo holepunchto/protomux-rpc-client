@@ -391,7 +391,6 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extra
     )
 
     for (const id of extraIds) {
-      console.log('setting up id', id)
       const rpcI = new ProtomuxRPC(conn, {
         id,
         valueEncoding: cenc.none
