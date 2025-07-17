@@ -159,6 +159,16 @@ test('start suspended flow', async t => {
   t.is(res, 'ok', 'correct response (sanity check)')
 })
 
+test('no connection opened when suspending before connecting', async t => {
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  t.is(client.rpc, null, 'sanity check: no rpc setup yet')
+  await client.suspend()
+  t.is(client.rpc, null, 'still no rpc setup after suspending')
+})
+
 test('request resolves without return value if closed while suspended', async t => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
