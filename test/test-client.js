@@ -176,6 +176,18 @@ test('request resolves without return value if closed while suspended', async t 
   await t.execution(async () => await p, 'no error on uncompleted request when closing')
 })
 
+test('client can close also if it never connects', async t => {
+  const bootstrap = await getBootstrap(t)
+  const serverPubKey = b4a.from('a'.repeat(64), 'hex')
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  const p = client.echo('ok')
+  p.catch(() => {})
+  await new Promise(resolve => setTimeout(resolve, 500))
+  await client.close()
+  t.pass('closing did not hang')
+})
+
 test('can open rpcs with different id to same server', async t => {
   const bootstrap = await getBootstrap(t)
   const extraIds = [b4a.from('1')]
