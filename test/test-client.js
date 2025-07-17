@@ -169,7 +169,8 @@ test('no connection opened when suspending before connecting', async t => {
   t.is(client.rpc, null, 'still no rpc setup after suspending')
 })
 
-test('request resolves without return value if closed while suspended', async t => {
+test('request rejects if closed while suspended', async t => {
+  t.plan(1)
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -177,13 +178,10 @@ test('request resolves without return value if closed while suspended', async t 
   await client.suspend()
   const p = client.echo('ok')
   p.catch(e => {
-    console.error(e)
-    t.fail('request should not error when closing')
+    t.is(e.code, 'CLIENT_CLOSING', 'pending request rejects if client closes')
   })
   await new Promise(resolve => setTimeout(resolve, 100))
   await client.close()
-
-  await t.execution(async () => await p, 'no error on uncompleted request when closing')
 })
 
 test('client can close also if it never connects', async t => {
