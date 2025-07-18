@@ -184,6 +184,19 @@ test('request rejects if closed while suspended', async t => {
   await client.close()
 })
 
+test('request rejects if dht destroyed (no reconnect loop)', async t => {
+  t.plan(1)
+  const bootstrap = await getBootstrap(t)
+  const { serverPubKey } = await getServer(t, bootstrap)
+  const client = await getClient(t, bootstrap, serverPubKey)
+
+  await client.dht.destroy()
+  await t.exception(
+    async () => { await client.echo('ok') },
+    /DHT_DESTROYED:/
+  )
+})
+
 test('client can close also if it never connects', async t => {
   const bootstrap = await getBootstrap(t)
   const serverPubKey = b4a.from('a'.repeat(64), 'hex')
