@@ -34,6 +34,16 @@ class ProtomuxRpcClient extends SuspendResource {
     this.requestTimeout = requestTimeout
     this.backoffValues = backoffValues || [5000, 15000, 60000, 300000]
 
+    this.stats = {
+      connection: {
+        attempts: 0,
+        opened: 0
+      },
+      requests: {
+        sent: 0,
+        success: 0
+      }
+    }
     this._clientRefs = new Map()
     this._gcInterval = null
   }
@@ -81,7 +91,8 @@ class ProtomuxRpcClient extends SuspendResource {
       keyPair: this.keyPair,
       backoffValues: this.backoffValues,
       id,
-      protocol
+      protocol,
+      stats: this.stats
     }
     const client = new Client(key, this.dht, opts)
     ref = new ClientRef(client)

@@ -264,7 +264,7 @@ test('no interactions if also replicating a corestore with the server peer', asy
 
   serverSwarm.on('connection', c => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
-    if (DEBUG) c.on('close', '(DEBUG) server connection closed')
+    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
     store.replicate(c)
 
     const rpc = new ProtomuxRPC(c, {
@@ -287,7 +287,7 @@ test('no interactions if also replicating a corestore with the server peer', asy
   const clientSwarm = new Hyperswarm({ bootstrap })
   clientSwarm.on('connection', c => {
     if (DEBUG) console.log('(DEBUG) client opened connection')
-    if (DEBUG) c.on('close', '(DEBUG) client connection closed')
+    if (DEBUG) c.on('close', () => { console.log('(DEBUG) client connection closed') })
 
     clientStore.replicate(c)
   })
@@ -312,6 +312,86 @@ test('no interactions if also replicating a corestore with the server peer', asy
   await clientStore.close()
   await serverSwarm.destroy()
   await store.close()
+})
+
+test('client respects backoff when server disconnects before setting up RPC', async t => {
+  const bootstrap = await getBootstrap(t)
+  const serverDht = new HyperDHT({ bootstrap })
+  const server = serverDht.createServer()
+
+  server.on('connection', c => {
+    if (DEBUG) console.log('(DEBUG) server opened connection')
+    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    c.destroy()
+  })
+  t.teardown(async () => {
+    await serverDht.destroy()
+  })
+
+  await server.listen()
+  await new Promise(resolve => setTimeout(resolve, 500)) // TODO: should be a flush
+  const { publicKey: serverPubKey } = server.address()
+
+  const clientDht = new HyperDHT({ bootstrap })
+  // doesn't matter which client it is, since the server insta-disconnects
+  const client = new EchoClient(serverPubKey, clientDht, { backoffValues: [10, 10, 10000] })
+
+  try {
+    await client.makeRequest('error-me', 'somestring', { timeout: 2000 })
+  } catch (e) {
+    t.is(e.code, 'REQUEST_TIMEOUT')
+  }
+
+  t.is(client.stats.connection.opened, 0, 'sanity check')
+  t.is(client.stats.connection.attempts, 3, 'respected backoffs')
+
+  await clientDht.destroy()
+})
+
+test('client does not attempt reconnecting when connection is lost after the RPC is established', async t => {
+  const bootstrap = await getBootstrap(t)
+  const serverDht = new HyperDHT({ bootstrap })
+  const server = serverDht.createServer()
+
+  server.on('connection', c => {
+    if (DEBUG) console.log('(DEBUG) server opened connection')
+    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    const rpc = new ProtomuxRPC(c, {
+      id: serverPubKey,
+      valueEncoding: cenc.none
+    })
+    rpc.respond(
+      'echo',
+      { requestEncoding: cenc.string, responseEncoding: cenc.string },
+      async (req) => {
+        return req
+      }
+    )
+    setTimeout(() => c.destroy(), 200)
+  })
+  t.teardown(async () => {
+    await serverDht.destroy()
+  })
+
+  await server.listen()
+  await new Promise(resolve => setTimeout(resolve, 200)) // TODO: should be a flush
+  const { publicKey: serverPubKey } = server.address()
+
+  const clientDht = new HyperDHT({ bootstrap })
+  const client = new EchoClient(serverPubKey, clientDht, { backoffValues: [10, 10, 10000] })
+
+  try {
+    await client.echo('somestring')
+  } catch (e) {
+    t.is(e.code, 'CHANNEL_CLOSED')
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  t.is(client.stats.connection.attempts, 1, 'did not retry')
+  t.is(client.stats.connection.opened, 1, 'did connect')
+
+  await clientDht.destroy()
 })
 
 async function getBootstrap (t) {

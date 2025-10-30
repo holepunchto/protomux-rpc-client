@@ -7,6 +7,7 @@ const b4a = require('b4a')
 const cenc = require('compact-encoding')
 
 const ProtomuxRpcClient = require('..')
+const ProtomuxRpcConnection = require('../lib/client')
 
 const DEBUG = false
 
@@ -339,6 +340,75 @@ test('One server exposing multiple rpc services', async t => {
     t.is(b4a.toString(res), 'Protocol: extra-protocol res: hi', 'rpc request processed successfully')
     t.is(getNrCons(), 3, 'separate connection')
   }
+})
+
+test('client has same stats as the overall object', async (t) => {
+  const bootstrap = await setupTestnet(t)
+  const clientDht = new HyperDHT({ bootstrap })
+  const statelessRpc = new ProtomuxRpcClient(clientDht, { msGcInterval: 500 })
+
+  const directClient = new ProtomuxRpcConnection('a'.repeat(64), clientDht)
+  t.alike(directClient.stats, statelessRpc.stats)
+  t.is(directClient.stats.connection.opened, 0, 'sanity check')
+
+  await clientDht.destroy()
+})
+
+test('client stays connected on RPC errors', async t => {
+  const bootstrap = await setupTestnet(t)
+  const serverDht = new HyperDHT({ bootstrap })
+  const server = serverDht.createServer()
+
+  server.on('connection', c => {
+    if (DEBUG) console.log('(DEBUG) server opened connection')
+    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+
+    const rpc = new ProtomuxRPC(c, {
+      id: serverPubKey,
+      valueEncoding: cenc.none
+    })
+    rpc.respond(
+      'error-me',
+      { requestEncoding: cenc.string, responseEncoding: cenc.string },
+      async () => {
+        console.log('received request')
+        throw new Error('oops')
+      }
+    )
+  })
+  t.teardown(async () => {
+    await serverDht.destroy()
+  })
+
+  await server.listen()
+  await new Promise(resolve => setTimeout(resolve, 500)) // TODO: should be a flush
+  const { publicKey: serverPubKey } = server.address()
+
+  const clientDht = new HyperDHT({ bootstrap })
+  const statelessRpc = new ProtomuxRpcClient(clientDht, { msGcInterval: 500 })
+  t.teardown(async () => {
+    await statelessRpc.close()
+    await clientDht.destroy()
+  })
+
+  try {
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+  } catch (e) {
+    e.cause.message.includes('oops')
+  }
+  try {
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+  } catch (e) {
+    e.cause.message.includes('oops')
+  }
+  try {
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+  } catch (e) {
+    e.cause.message.includes('oops')
+  }
+
+  t.is(statelessRpc.stats.connection.opened, 1)
+  t.is(statelessRpc.stats.requests.sent, 3)
 })
 
 function getRpcClient (t, bootstrap, opts = {}) {
