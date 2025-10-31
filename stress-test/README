@@ -1,0 +1,10 @@
+# Stress Test
+
+## How to Run
+
+1. Start the server:
+   ```bash
+   node server.js
+   ```
+
+2. When server.js runs, it will automatically spawn worker processes (running client.js) using the configuration defined in config.json.
