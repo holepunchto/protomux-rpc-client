@@ -24,7 +24,7 @@ class ClientRef {
 }
 
 class ProtomuxRpcClient extends SuspendResource {
-  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair, requestTimeout = 10000, backoffValues } = {}) {
+  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair, requestTimeout = 10000, maxConcurrent = 16, backoffValues } = {}) {
     super({ suspended })
 
     this.dht = dht
@@ -33,6 +33,7 @@ class ProtomuxRpcClient extends SuspendResource {
     this.keyPair = keyPair
     this.requestTimeout = requestTimeout
     this.backoffValues = backoffValues || [5000, 15000, 60000, 300000]
+    this.maxConcurrent = maxConcurrent
 
     this.stats = {
       connection: {
@@ -92,7 +93,8 @@ class ProtomuxRpcClient extends SuspendResource {
       backoffValues: this.backoffValues,
       id,
       protocol,
-      stats: this.stats
+      stats: this.stats,
+      maxConcurrent: this.maxConcurrent
     }
     const client = new Client(key, this.dht, opts)
     ref = new ClientRef(client)
