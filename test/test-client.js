@@ -104,7 +104,7 @@ test('client timeout opt (slow RPC)', async t => {
 
   await t.exception(
     async () => { await client.echo('ok', { timeout: 250 }) },
-    /REQUEST_TIMEOUT:/,
+    /TIMEOUT_EXCEEDED:/,
     'slow RPC => timeout'
   )
 

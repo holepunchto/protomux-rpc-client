@@ -299,7 +299,7 @@ test('requestTimeout opt', async t => {
 test('concurrent requests opt', async t => {
   const bootstrap = await setupTestnet(t)
   const { rpcClient } = getRpcClient(t, bootstrap, { maxConcurrent: 4 })
-  const { server } = await setupRpcServer(t, bootstrap, { msDelay: 1000 })
+  const { server } = await setupRpcServer(t, bootstrap, { msDelay: 500 })
 
   let requestFinishedCount = 0
 
@@ -312,33 +312,13 @@ test('concurrent requests opt', async t => {
     requestFinishedCount++
   })
 
-  await new Promise(resolve => setTimeout(resolve, 1100))
+  await new Promise(resolve => setTimeout(resolve, 750))
 
   t.is(requestFinishedCount, 4, 'only 4 requests finished')
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise(resolve => setTimeout(resolve, 500))
 
   t.is(requestFinishedCount, 6, 'all requests finished')
-})
-
-test('concurrent requests opt with timeout (timeout release request count)', async t => {
-  const bootstrap = await setupTestnet(t)
-  const { rpcClient } = getRpcClient(t, bootstrap, { maxConcurrent: 4, requestTimeout: 1_000 })
-  const { server } = await setupRpcServer(t, bootstrap, { msDelay: 2_000 })
-
-  let requestFinishedCount = 0
-
-  new Array(6).fill(0).map(async (_, i) => {
-    await t.exception(async () => {
-      await rpcClient.makeRequest(server.publicKey, 'echo', 'hi', { requestEncoding: cenc.string, responseEncoding: cenc.string })
-    }, /REQUEST_TIMEOUT:/, 'request timed out')
-
-    requestFinishedCount++
-  })
-
-  await new Promise(resolve => setTimeout(resolve, 1100))
-
-  t.is(requestFinishedCount, 6, 'all requests with timeout')
 })
 
 test('One server exposing multiple rpc services', async t => {

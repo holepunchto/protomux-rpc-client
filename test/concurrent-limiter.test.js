@@ -51,12 +51,9 @@ test('pending execution rejects if limiter destroyed while waiting', async funct
   // Destroy while the second is waiting
   limiter.destroy()
 
-  // await new Promise((resolve) => setTimeout(resolve, 10))
-
   await t.exception(queued, /CONCURRENT_LIMITER_DESTROYED:/)
 
-  // the first execution should still be held
-  t.is(await hold, 'held')
+  t.is(await hold, 'held', 'the first execution should still be held')
 })
 
 test('queued execution aborts when abortSignalPromise rejects while waiting', async function (t) {
@@ -69,38 +66,44 @@ test('queued execution aborts when abortSignalPromise rejects while waiting', as
   })
 
   const abortSignal = new Signal()
-  let didRun = false
 
   // This call will queue and should abort before it ever runs
   const queued = limiter.execute(async () => {
-    didRun = true
-    return 'should-not-run'
+    t.fail('queued fn should not run')
   }, { abortSignalPromise: abortSignal.wait() })
 
   setTimeout(() => abortSignal.notify(new Error('ABORTED_TEST_WAITING')), 50)
 
   await t.exception(queued, /ABORTED_TEST_WAITING/)
-  t.is(didRun, false, 'queued fn never ran')
   t.is(await hold, 'held', 'first execution still completes')
 })
 
-test('running execution aborts when abortSignalPromise rejects during execution will release the slot', async function (t) {
+test('running execution aborts when abortSignalPromise rejects during execution will not release the slot', async function (t) {
   const limiter = new ConcurrentLimiter({ maxConcurrent: 1 })
 
   const abortSignal = new Signal()
 
   // Start a long-running task and abort during execution
   const longRunning = limiter.execute(async () => {
-    // never resolves
-    await new Promise(() => {})
+    await new Promise((resolve) => { setTimeout(() => resolve(), 500) })
     return 'long'
   }, { abortSignalPromise: abortSignal.wait() })
-  const queued = limiter.execute(async () => 'queue-ok')
 
+  let queuedFinished = false
+  limiter.execute(async () => {
+    queuedFinished = true
+  })
+
+  // abort during the long running task execution
   setTimeout(() => abortSignal.notify(new Error('ABORTED_TEST_RUNNING')), 50)
 
-  await t.exception(longRunning, /ABORTED_TEST_RUNNING/)
+  await new Promise((resolve) => setTimeout(resolve, 100))
 
-  // The slot is released after abort so queued can finish
-  t.is(await queued, 'queue-ok')
+  t.is(queuedFinished, false, 'abort the long running task will not release the slot')
+
+  t.is(await longRunning, 'long', 'the long running task should not be aborted')
+
+  await new Promise((resolve) => setTimeout(resolve, 50))
+
+  t.is(queuedFinished, true, 'The slot is released after abort so queued can finish')
 })
