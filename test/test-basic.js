@@ -298,7 +298,7 @@ test('requestTimeout opt', async t => {
 
 test('concurrent requests opt', async t => {
   const bootstrap = await setupTestnet(t)
-  const { rpcClient } = getRpcClient(t, bootstrap, { maxConcurrent: 4 })
+  const { rpcClient } = getRpcClient(t, bootstrap, { maxConcurrentPerService: 4 })
   const { server } = await setupRpcServer(t, bootstrap, { msDelay: 500 })
 
   let requestFinishedCount = 0
