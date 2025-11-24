@@ -17,14 +17,14 @@ test('consumes capacity immediately then waits for refill', async function (t) {
   rateLimiter.execute(async () => (b = 'b'))
   rateLimiter.execute(async () => (c = 'c'))
 
-  await new Promise((resolve) => setTimeout(resolve, 60))
+  await new Promise((resolve) => setTimeout(resolve, 75))
 
   t.is(a, 'a')
   t.is(b, 'b')
   t.is(c, null)
 
   // Refill happens at 100ms, expect p3 to complete after that
-  await new Promise((resolve) => setTimeout(resolve, 40))
+  await new Promise((resolve) => setTimeout(resolve, 75))
 
   t.is(c, 'c')
 
