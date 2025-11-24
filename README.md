@@ -36,8 +36,7 @@ Create a new Protomux RPC Client instance. `dht` is a hyperDHT instance.
 - `maxConcurrentPerService`: maximum number of concurrent request per service. Default: `16`.
 - `rateLimitPerService`: rate limit per service, using bucket rate limit algorithm. Default: `null` - no limit
   - `capacity` - Max tokens (burst capacity)
-  - `tokensPerInterval` - Tokens refilled each interval
-  - `intervalMs` - Refill interval in milliseconds
+  - `intervalMs` - Refill interval in milliseconds for 1 token
 
 #### `client.opened`
 
