@@ -408,6 +408,8 @@ test('client has same stats as the overall object', async (t) => {
   t.alike(directClient.stats, statelessRpc.stats)
   t.is(directClient.stats.connection.opened, 0, 'sanity check')
 
+  await directClient.close()
+  await statelessRpc.close()
   await clientDht.destroy()
 })
 

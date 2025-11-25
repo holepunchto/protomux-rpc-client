@@ -1,7 +1,6 @@
 const test = require('brittle')
 const BucketRateLimiter = require('../lib/bucket-rate-limiter')
 const Signal = require('signal-promise')
-const { eventFlush } = require('./util')
 
 test('consumes capacity immediately then waits for refill', async function (t) {
   const rateLimiter = new BucketRateLimiter({
@@ -138,3 +137,7 @@ test('running execution abort signal during execution does not advance token ava
 
   rateLimiter.destroy()
 })
+
+function eventFlush () {
+  return new Promise((resolve) => setImmediate(resolve))
+}

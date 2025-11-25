@@ -18,6 +18,7 @@ test('client can connect to DHT server exposing rpc', async t => {
 
   const res = await client.echo('ok')
   t.is(res, 'ok', 'happy path works')
+  await client.close()
 })
 
 test('client can pass relayThrough opt', async t => {
@@ -345,6 +346,7 @@ test('client respects backoff when server disconnects before setting up RPC', as
   t.is(client.stats.connection.opened, 0, 'sanity check')
   t.is(client.stats.connection.attempts, 3, 'respected backoffs')
 
+  await client.close()
   await clientDht.destroy()
 })
 
@@ -391,6 +393,7 @@ test('client does not attempt reconnecting when connection is lost after the RPC
   t.is(client.stats.connection.attempts, 1, 'did not retry')
   t.is(client.stats.connection.opened, 1, 'did connect')
 
+  await client.close()
   await clientDht.destroy()
 })
 
