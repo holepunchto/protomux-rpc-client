@@ -1,11 +1,11 @@
 const test = require('brittle')
 const BucketRateLimiter = require('../lib/bucket-rate-limiter')
 const Signal = require('signal-promise')
+const { eventFlush } = require('./util')
 
 test('consumes capacity immediately then waits for refill', async function (t) {
   const rateLimiter = new BucketRateLimiter({
     capacity: 2,
-    tokensPerInterval: 1,
     intervalMs: 100
   })
 
@@ -23,14 +23,14 @@ test('consumes capacity immediately then waits for refill', async function (t) {
     c = 'c'
   })
 
-  await new Promise((resolve) => setTimeout(resolve, 75))
+  await eventFlush()
 
   t.is(a, 'a')
   t.is(b, 'b')
   t.is(c, null)
 
   // Refill happens at 100ms, expect p3 to complete after that
-  await new Promise((resolve) => setTimeout(resolve, 75))
+  await new Promise((resolve) => setTimeout(resolve, 100))
 
   t.is(c, 'c')
 
@@ -40,8 +40,7 @@ test('consumes capacity immediately then waits for refill', async function (t) {
 test('refill does not exceed capacity across many intervals', async function (t) {
   const rateLimiter = new BucketRateLimiter({
     capacity: 2,
-    tokensPerInterval: 5,
-    intervalMs: 500
+    intervalMs: 250
   })
 
   // Drain initial capacity
@@ -49,7 +48,9 @@ test('refill does not exceed capacity across many intervals', async function (t)
   await rateLimiter.wait()
 
   // Advance many intervals; tokens should cap at capacity (2)
-  await new Promise((resolve) => setTimeout(resolve, 1100))
+  await new Promise((resolve) => setTimeout(resolve, 1200))
+
+  t.is(rateLimiter.tokens, 2)
 
   // Two immediate executions should proceed without waiting
   let y1 = null
@@ -65,7 +66,7 @@ test('refill does not exceed capacity across many intervals', async function (t)
     y3 = 'y3'
   })
 
-  await new Promise((resolve) => setTimeout(resolve, 50))
+  await eventFlush()
 
   t.is(y1, 'y1')
   t.is(y2, 'y2')
@@ -84,11 +85,8 @@ test('queued execution aborts when abortSignalPromise rejects while waiting', as
     intervalMs: 200
   })
 
-  // Occupy the only token for a while
-  const hold = rateLimiter.wait().then(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    return 'held'
-  })
+  // Occupy the only token
+  rateLimiter.wait()
 
   const abortSignal = new Signal()
 
@@ -100,7 +98,6 @@ test('queued execution aborts when abortSignalPromise rejects while waiting', as
   setTimeout(() => abortSignal.notify(new Error('ABORTED_TEST_WAITING')), 50)
 
   await t.exception(queued, /ABORTED_TEST_WAITING/)
-  t.is(await hold, 'held')
 
   rateLimiter.destroy()
 })
@@ -108,7 +105,6 @@ test('queued execution aborts when abortSignalPromise rejects while waiting', as
 test('running execution abort signal during execution does not advance token availability', async function (t) {
   const rateLimiter = new BucketRateLimiter({
     capacity: 1,
-    tokensPerInterval: 1,
     intervalMs: 1000
   })
 

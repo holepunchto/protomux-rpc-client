@@ -5,7 +5,6 @@ const test = require('brittle')
 const createTestnet = require('hyperdht/testnet')
 const b4a = require('b4a')
 const cenc = require('compact-encoding')
-
 const ProtomuxRpcClient = require('..')
 const ProtomuxRpcConnection = require('../lib/client')
 
