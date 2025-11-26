@@ -34,7 +34,7 @@ class ProtomuxRpcClient extends SuspendResource {
       requestTimeout = 10000,
       maxConcurrentPerService = 16,
       backoffValues,
-      rateLimitPerService = { capacity: 50, intervalMs: 200 }
+      rateLimitPerService = { capacity: 50, intervalMs: 200 } // This option does not follow semver now
     } = {}) {
     super({ suspended })
 
