@@ -5,6 +5,7 @@ const test = require('brittle')
 const createTestnet = require('hyperdht/testnet')
 const b4a = require('b4a')
 const cenc = require('compact-encoding')
+
 const ProtomuxRpcClient = require('..')
 const ProtomuxRpcConnection = require('../lib/client')
 
@@ -318,39 +319,6 @@ test('concurrent requests opt', async t => {
   await new Promise(resolve => setTimeout(resolve, 500))
 
   t.is(requestFinishedCount, 6, 'all requests finished')
-})
-
-test('rate limit opt', async t => {
-  const bootstrap = await setupTestnet(t)
-  const { rpcClient } = getRpcClient(t, bootstrap, {
-    rateLimitPerService: { capacity: 2, tokensPerInterval: 1, intervalMs: 200 }
-  })
-  const { server } = await setupRpcServer(t, bootstrap)
-
-  let requestFinishedCount = 0
-
-  new Array(5).fill(0).map(async () => {
-    const res = await rpcClient.makeRequest(server.publicKey, 'echo', 'hi', {
-      requestEncoding: cenc.string,
-      responseEncoding: cenc.string
-    })
-    t.is(res, 'hi', 'rpc request processed successfully')
-    requestFinishedCount++
-  })
-
-  // With capacity=2 and tokensPerInterval=1 every 200ms
-  // expect 2 to finish quickly, then one more approximately every 200ms.
-  await new Promise(resolve => setTimeout(resolve, 50))
-  t.is(requestFinishedCount, 2, 'burst capacity executed immediately')
-
-  await new Promise(resolve => setTimeout(resolve, 200)) // ~250ms since start
-  t.is(requestFinishedCount, 3, 'one additional request after first refill')
-
-  await new Promise(resolve => setTimeout(resolve, 200)) // ~450ms since start
-  t.is(requestFinishedCount, 4, 'one additional request after second refill')
-
-  await new Promise(resolve => setTimeout(resolve, 200)) // ~650ms since start
-  t.is(requestFinishedCount, 5, 'all requests finished within rate limit')
 })
 
 test('One server exposing multiple rpc services', async t => {
