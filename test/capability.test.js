@@ -7,7 +7,8 @@ const b4a = require('b4a')
 const cenc = require('compact-encoding')
 
 const ProtomuxRpcClient = require('..')
-const Handshake = require('../lib/handshake')
+
+const Handshake = HyperswarmCapability.Encoding
 
 test('capability - valid capability', async t => {
   const bootstrap = await setupTestnet(t)
