@@ -24,7 +24,7 @@ class ClientRef {
 }
 
 class ProtomuxRpcClient extends SuspendResource {
-  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair = null, requestTimeout = 10000, maxConcurrentPerService = 16, backoffValues, namespace = null, capability = null } = {}) {
+  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair = null, requestTimeout = 10000, maxConcurrentPerService = 16, backoffValues, namespace = undefined, capability = null } = {}) {
     super({ suspended })
 
     this.dht = dht
