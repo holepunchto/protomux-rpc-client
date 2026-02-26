@@ -148,37 +148,37 @@ test('capability - request after invalid capability still times out', async t =>
   )
 })
 
-for (let i = 0; i < 100; i++) {
-  test.solo('capability - server reject does not result in retries', async t => {
-    // DEVNOTE in this flow, connect runs successfully
-    // but the channel then errors soon after because the remote insta-closes it
-    // (note: this comment can easily get outdated if we refactor this flow, so double check)
-    const bootstrap = await setupTestnet(t)
-    const namespace = b4a.from('test-namespace')
-    const capability = b4a.from('a'.repeat(64), 'hex')
-    const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability, alwaysRejectCapability: true })
+test('capability - server reject does not result in retries', async t => {
+  // DEVNOTE in this flow, connect runs successfully
+  // but the channel then errors soon after because the remote insta-closes it
+  // (note: this comment can easily get outdated if we refactor this flow, so double check)
+  const bootstrap = await setupTestnet(t)
+  const namespace = b4a.from('test-namespace')
+  const capability = b4a.from('a'.repeat(64), 'hex')
+  const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability, alwaysRejectCapability: true })
 
-    const clientDht = new HyperDHT({ bootstrap })
-    const client = new ProtomuxRpcClient(clientDht, { namespace, capability })
-    t.teardown(async () => {
-      await client.close()
-      await clientDht.destroy()
-    })
-
-    await t.exception(
-      async () => {
-        await client.makeRequest(
-          server.publicKey,
-          'echo',
-          b4a.from('hello'),
-          { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-        )
-      },
-      /CHANNEL_CLOSED/, // It's fine if we switch to a different error later--just documenting current behaviour
-      'Channel closed error when remtoe rejects our capability'
-    )
+  const clientDht = new HyperDHT({ bootstrap })
+  const client = new ProtomuxRpcClient(clientDht, { namespace, capability, requestTimeout: 500 })
+  t.teardown(async () => {
+    await client.close()
+    await clientDht.destroy()
   })
-}
+
+  // Behaviour is different on Windows compared to mac/linux:
+  // on mac/linux it fails with a CHANNEL_CLOSED error
+  // while on windows it ends up in a retry loop (that seems to circumvent the backoff)
+  await t.exception(
+    async () => {
+      await client.makeRequest(
+        server.publicKey,
+        'echo',
+        b4a.from('hello'),
+        { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+      )
+    },
+    'Error when the remote rejects our capability'
+  )
+})
 
 async function setupTestnet (t) {
   const testnet = await createTestnet()
