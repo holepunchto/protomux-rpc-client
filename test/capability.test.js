@@ -148,6 +148,36 @@ test('capability - request after invalid capability still times out', async t =>
   )
 })
 
+test('capability - server reject does not result in retries', async t => {
+  // DEVNOTE in this flow, connect runs successfully
+  // but the channel then errors soon after because the remote insta-closes it
+  // (note: this comment can easily get outdated if we refactor this flow, so double check)
+  const bootstrap = await setupTestnet(t)
+  const namespace = b4a.from('test-namespace')
+  const capability = b4a.from('a'.repeat(64), 'hex')
+  const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability, alwaysRejectCapability: true })
+
+  const clientDht = new HyperDHT({ bootstrap })
+  const client = new ProtomuxRpcClient(clientDht, { namespace, capability })
+  t.teardown(async () => {
+    await client.close()
+    await clientDht.destroy()
+  })
+
+  await t.exception(
+    async () => {
+      await client.makeRequest(
+        server.publicKey,
+        'echo',
+        b4a.from('hello'),
+        { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+      )
+    },
+    /CHANNEL_CLOSED/, // It's fine if we switch to a different error later--just documenting current behaviour
+    'Channel closed error when remtoe rejects our capability'
+  )
+})
+
 async function setupTestnet (t) {
   const testnet = await createTestnet()
   t.teardown(async () => {
@@ -183,7 +213,7 @@ async function setupRpcServer (t, bootstrap) {
   return { server }
 }
 
-async function setupCapabilityServer (t, bootstrap, { namespace, capability }) {
+async function setupCapabilityServer (t, bootstrap, { namespace, capability, alwaysRejectCapability = false }) {
   const dht = new HyperDHT({ bootstrap })
   const server = dht.createServer()
 
@@ -204,7 +234,7 @@ async function setupCapabilityServer (t, bootstrap, { namespace, capability }) {
     })
 
     rpc.on('open', (handshake) => {
-      if (!handshake?.capability || !cap.verify(conn, capability, handshake.capability)) {
+      if (alwaysRejectCapability || !handshake?.capability || !cap.verify(conn, capability, handshake.capability)) {
         rpc.destroy(new Error('Remote sent invalid capability'))
       }
     })
