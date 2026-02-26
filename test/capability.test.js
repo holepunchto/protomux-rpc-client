@@ -41,7 +41,7 @@ test('capability - invalid capability', async t => {
   const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability: serverCapability })
 
   const clientDht = new HyperDHT({ bootstrap })
-  const client = new ProtomuxRpcClient(clientDht, { namespace, capability: clientCapability, requestTimeout: 500 })
+  const client = new ProtomuxRpcClient(clientDht, { namespace, capability: clientCapability, requestTimeout: 10000000 })
   t.teardown(async () => {
     await client.close()
     await clientDht.destroy()
@@ -56,7 +56,7 @@ test('capability - invalid capability', async t => {
         { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
       )
     },
-    /REQUEST_TIMEOUT/
+    /INVALID_REMOTE_CAPABILITY/
   )
 })
 
@@ -104,7 +104,7 @@ test('capability - invalid namespace', async t => {
         { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
       )
     },
-    /REQUEST_TIMEOUT/
+    /INVALID_REMOTE_CAPABILITY/
   )
 })
 
@@ -132,7 +132,7 @@ test('capability - request after invalid capability still times out', async t =>
         { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
       )
     },
-    /REQUEST_TIMEOUT/
+    /INVALID_REMOTE_CAPABILITY/
   )
 
   await t.exception(
@@ -144,7 +144,7 @@ test('capability - request after invalid capability still times out', async t =>
         { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
       )
     },
-    /REQUEST_TIMEOUT/
+    /INVALID_REMOTE_CAPABILITY/
   )
 })
 
