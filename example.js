@@ -6,12 +6,12 @@ const getTestnet = require('hyperdht/testnet')
 const ProtomuxRpcClient = require('.')
 
 class EchoClient {
-  constructor (key, rpcClient) {
+  constructor(key, rpcClient) {
     this.key = key
     this.rpcClient = rpcClient
   }
 
-  async echo (text) {
+  async echo(text) {
     return await this.rpcClient.makeRequest(
       this.key,
       'echo', // The RPC method name
@@ -21,7 +21,7 @@ class EchoClient {
   }
 }
 
-async function main () {
+async function main() {
   console.log('Running protomux-RPC client example')
   const testnet = await getTestnet()
   const { bootstrap } = testnet
@@ -31,7 +31,7 @@ async function main () {
   await server.listen()
   const { publicKey: serverPubKey } = server.address()
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     console.log('server opened connection')
     const rpc = new ProtomuxRPC(c, {
       id: serverPubKey,

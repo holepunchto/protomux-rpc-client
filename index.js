@@ -4,27 +4,40 @@ const safetyCatch = require('safety-catch')
 const Client = require('./lib/client')
 
 class ClientRef {
-  constructor (client) {
+  constructor(client) {
     this.client = client
     this.lastUsed = Date.now()
     this.refs = 1
   }
 
-  bumpLastUsed () {
+  bumpLastUsed() {
     this.lastUsed = Date.now()
   }
 
-  addRef () {
+  addRef() {
     this.refs++
   }
 
-  unref () {
+  unref() {
     this.refs--
   }
 }
 
 class ProtomuxRpcClient extends SuspendResource {
-  constructor (dht, { msGcInterval = 60000, suspended = false, relayThrough = null, keyPair = null, requestTimeout = 10000, maxConcurrentPerService = 16, backoffValues, namespace = undefined, capability = null } = {}) {
+  constructor(
+    dht,
+    {
+      msGcInterval = 60000,
+      suspended = false,
+      relayThrough = null,
+      keyPair = null,
+      requestTimeout = 10000,
+      maxConcurrentPerService = 16,
+      backoffValues,
+      namespace = undefined,
+      capability = null
+    } = {}
+  ) {
     super({ suspended })
 
     this.dht = dht
@@ -51,17 +64,15 @@ class ProtomuxRpcClient extends SuspendResource {
     this._gcInterval = null
   }
 
-  get nrConnections () {
+  get nrConnections() {
     return this._clientRefs.size
   }
 
-  async _open () {
-    this._gcInterval = setInterval(
-      this.gc.bind(this), this.msGcInterval
-    )
+  async _open() {
+    this._gcInterval = setInterval(this.gc.bind(this), this.msGcInterval)
   }
 
-  async _close () {
+  async _close() {
     clearInterval(this._gcInterval)
 
     const proms = []
@@ -71,7 +82,7 @@ class ProtomuxRpcClient extends SuspendResource {
     await Promise.all(proms)
   }
 
-  _getClient (key, protocol, id) {
+  _getClient(key, protocol, id) {
     if (this.closing) throw new Error('Closing')
 
     // DEVNOTE: when a single server exposes multiple RPC services,
@@ -106,7 +117,7 @@ class ProtomuxRpcClient extends SuspendResource {
     return ref
   }
 
-  gc () {
+  gc() {
     const removed = []
     const minTime = Date.now() - this.msGcInterval
 
@@ -121,7 +132,7 @@ class ProtomuxRpcClient extends SuspendResource {
     if (removed.length > 0) this.emit('gc', removed.length)
   }
 
-  async _suspend () {
+  async _suspend() {
     const proms = []
     for (const ref of this._clientRefs.values()) {
       proms.push(ref.client.suspend())
@@ -129,7 +140,7 @@ class ProtomuxRpcClient extends SuspendResource {
     await Promise.all(proms)
   }
 
-  async _resume () {
+  async _resume() {
     const proms = []
     for (const ref of this._clientRefs.values()) {
       proms.push(ref.client.resume())
@@ -137,13 +148,22 @@ class ProtomuxRpcClient extends SuspendResource {
     await Promise.all(proms)
   }
 
-  async makeRequest (key, methodName, args, { requestEncoding, responseEncoding, timeout, protocol, id } = {}) {
+  async makeRequest(
+    key,
+    methodName,
+    args,
+    { requestEncoding, responseEncoding, timeout, protocol, id } = {}
+  ) {
     timeout = timeout || this.requestTimeout
     if (!this.opened) await this.ready()
 
     const ref = this._getClient(key, protocol, id)
     try {
-      return await ref.client.makeRequest(methodName, args, { requestEncoding, responseEncoding, timeout })
+      return await ref.client.makeRequest(methodName, args, {
+        requestEncoding,
+        responseEncoding,
+        timeout
+      })
     } finally {
       ref.unref()
     }

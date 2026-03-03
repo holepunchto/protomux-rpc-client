@@ -4,7 +4,7 @@
   "description": "Connect to protomux-rpc servers",
   "main": "index.js",
   "scripts": {
-    "test": "standard && brittle test/* && node example.js"
+    "test": "prettier --check . && lunte && brittle test/* && node example.js"
   },
   "files": [
     "index.js",
@@ -30,8 +30,10 @@
     "corestore": "^7.4.5",
     "hyperdht": "^6.20.1",
     "hyperswarm": "^4.12.1",
-    "protomux-rpc-router": "1.2.0",
-    "standard": "^17.1.2"
+    "lunte": "^1.6.0",
+    "prettier": "^3.8.1",
+    "prettier-config-holepunch": "^2.0.0",
+    "protomux-rpc-router": "1.2.0"
   },
   "dependencies": {
     "compact-encoding": "^2.16.0",

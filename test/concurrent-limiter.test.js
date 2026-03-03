@@ -68,9 +68,12 @@ test('queued execution aborts when abortSignalPromise rejects while waiting', as
   const abortSignal = new Signal()
 
   // This call will queue and should abort before it ever runs
-  const queued = limiter.execute(async () => {
-    t.fail('queued fn should not run')
-  }, { abortSignalPromise: abortSignal.wait() })
+  const queued = limiter.execute(
+    async () => {
+      t.fail('queued fn should not run')
+    },
+    { abortSignalPromise: abortSignal.wait() }
+  )
 
   setTimeout(() => abortSignal.notify(new Error('ABORTED_TEST_WAITING')), 50)
 
@@ -84,10 +87,15 @@ test('running execution aborts when abortSignalPromise rejects during execution 
   const abortSignal = new Signal()
 
   // Start a long-running task and abort during execution
-  const longRunning = limiter.execute(async () => {
-    await new Promise((resolve) => { setTimeout(() => resolve(), 500) })
-    return 'long'
-  }, { abortSignalPromise: abortSignal.wait() })
+  const longRunning = limiter.execute(
+    async () => {
+      await new Promise((resolve) => {
+        setTimeout(() => resolve(), 500)
+      })
+      return 'long'
+    },
+    { abortSignalPromise: abortSignal.wait() }
+  )
 
   let queuedFinished = false
   limiter.execute(async () => {
