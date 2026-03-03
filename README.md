@@ -34,6 +34,8 @@ Create a new Protomux RPC Client instance. `dht` is a hyperDHT instance.
 - `requestTimeout` default time (in ms) before a request rejects with a timeout error. Default: `10000`.
 - `msGcInterval`: how often to run the garbage collection. Connections are kept open for at least `msGcInterval` ms of inactivity.
 - `maxConcurrentPerService`: maximum number of concurrent request per service. Default: `16`.
+- `namespace`: optional namespace for capability.
+- `capability`: optional capability key. Enables capability verification.
 
 #### `client.opened`
 
