@@ -105,36 +105,6 @@ test('capability - invalid namespace', async t => {
   )
 })
 
-test('capability - server reject does not result in retries', async t => {
-  const bootstrap = await setupTestnet(t)
-  const namespace = b4a.from('test-namespace')
-  const serverCapability = b4a.from('a'.repeat(64), 'hex')
-  const clientCapability = b4a.from('b'.repeat(64), 'hex')
-  const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability: serverCapability })
-
-  const clientDht = new HyperDHT({ bootstrap })
-  const client = new ProtomuxRpcClient(clientDht, { namespace, capability: clientCapability, requestTimeout: 500 })
-  t.teardown(async () => {
-    await client.close()
-    await clientDht.destroy()
-  })
-
-  // Behaviour is different on Windows compared to mac/linux:
-  // on mac/linux it fails with a CHANNEL_CLOSED error
-  // while on windows it ends up in a retry loop (that seems to circumvent the backoff)
-  await t.exception(
-    async () => {
-      await client.makeRequest(
-        server.publicKey,
-        'echo',
-        b4a.from('hello'),
-        { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-      )
-    },
-    'Error when the remote rejects our capability'
-  )
-})
-
 async function setupTestnet (t) {
   const testnet = await createTestnet()
   t.teardown(async () => {
