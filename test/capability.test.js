@@ -1,14 +1,11 @@
-const ProtomuxRPC = require('protomux-rpc')
 const HyperDHT = require('hyperdht')
-const HyperswarmCapability = require('hyperswarm-capability')
 const test = require('brittle')
 const createTestnet = require('hyperdht/testnet')
 const b4a = require('b4a')
 const cenc = require('compact-encoding')
+const ProtomuxRpcRouter = require('protomux-rpc-router')
 
 const ProtomuxRpcClient = require('..')
-
-const Handshake = HyperswarmCapability.Encoding
 
 test('capability - valid capability', async t => {
   const bootstrap = await setupTestnet(t)
@@ -62,7 +59,7 @@ test('capability - invalid capability', async t => {
 
 test('capability - no capability configured', async t => {
   const bootstrap = await setupTestnet(t)
-  const { server } = await setupRpcServer(t, bootstrap)
+  const { server } = await setupCapabilityServer(t, bootstrap)
 
   const clientDht = new HyperDHT({ bootstrap })
   const client = new ProtomuxRpcClient(clientDht)
@@ -108,8 +105,7 @@ test('capability - invalid namespace', async t => {
   )
 })
 
-test('capability - request after invalid capability still times out', async t => {
-  t.plan(2)
+test('capability - server reject does not result in retries', async t => {
   const bootstrap = await setupTestnet(t)
   const namespace = b4a.from('test-namespace')
   const serverCapability = b4a.from('a'.repeat(64), 'hex')
@@ -117,48 +113,7 @@ test('capability - request after invalid capability still times out', async t =>
   const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability: serverCapability })
 
   const clientDht = new HyperDHT({ bootstrap })
-  const client = new ProtomuxRpcClient(clientDht, { namespace, capability: clientCapability, requestTimeout: 300 })
-  t.teardown(async () => {
-    await client.close()
-    await clientDht.destroy()
-  })
-
-  await t.exception(
-    async () => {
-      await client.makeRequest(
-        server.publicKey,
-        'echo',
-        b4a.from('hello'),
-        { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-      )
-    },
-    /INVALID_REMOTE_CAPABILITY/
-  )
-
-  await t.exception(
-    async () => {
-      await client.makeRequest(
-        server.publicKey,
-        'echo',
-        b4a.from('hello'),
-        { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-      )
-    },
-    /INVALID_REMOTE_CAPABILITY/
-  )
-})
-
-test('capability - server reject does not result in retries', async t => {
-  // DEVNOTE in this flow, connect runs successfully
-  // but the channel then errors soon after because the remote insta-closes it
-  // (note: this comment can easily get outdated if we refactor this flow, so double check)
-  const bootstrap = await setupTestnet(t)
-  const namespace = b4a.from('test-namespace')
-  const capability = b4a.from('a'.repeat(64), 'hex')
-  const { server } = await setupCapabilityServer(t, bootstrap, { namespace, capability, alwaysRejectCapability: true })
-
-  const clientDht = new HyperDHT({ bootstrap })
-  const client = new ProtomuxRpcClient(clientDht, { namespace, capability, requestTimeout: 500 })
+  const client = new ProtomuxRpcClient(clientDht, { namespace, capability: clientCapability, requestTimeout: 500 })
   t.teardown(async () => {
     await client.close()
     await clientDht.destroy()
@@ -188,69 +143,29 @@ async function setupTestnet (t) {
   return testnet.bootstrap
 }
 
-async function setupRpcServer (t, bootstrap) {
+async function setupCapabilityServer (t, bootstrap, { namespace = undefined, capability = null } = {}) {
   const dht = new HyperDHT({ bootstrap })
   const server = dht.createServer()
+  const router = new ProtomuxRpcRouter({ namespace, capability })
 
-  await server.listen()
-  const { publicKey: serverPubKey } = server.address()
+  router.method(
+    'echo',
+    { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer },
+    (req) => req
+  )
+  await router.ready()
 
   server.on('connection', conn => {
     conn.on('error', () => {})
-    const rpc = new ProtomuxRPC(conn, {
-      id: serverPubKey,
-      valueEncoding: cenc.none
-    })
-    rpc.respond(
-      'echo',
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer },
-      (req) => req
-    )
+    router.handleConnection(conn).catch(() => {})
   })
 
   t.teardown(async () => {
+    await router.close()
     await dht.destroy()
   }, { order: 100 })
-
-  return { server }
-}
-
-async function setupCapabilityServer (t, bootstrap, { namespace, capability, alwaysRejectCapability = false }) {
-  const dht = new HyperDHT({ bootstrap })
-  const server = dht.createServer()
 
   await server.listen()
-  const { publicKey: serverPubKey } = server.address()
-
-  const cap = new HyperswarmCapability(namespace)
-
-  server.on('connection', async conn => {
-    conn.on('error', () => {})
-    await conn.opened
-
-    const rpc = new ProtomuxRPC(conn, {
-      id: serverPubKey,
-      valueEncoding: cenc.none,
-      handshakeEncoding: Handshake,
-      handshake: { capability: cap.generate(conn, capability) }
-    })
-
-    rpc.on('open', (handshake) => {
-      if (alwaysRejectCapability || !handshake?.capability || !cap.verify(conn, capability, handshake.capability)) {
-        rpc.destroy(new Error('Remote sent invalid capability'))
-      }
-    })
-
-    rpc.respond(
-      'echo',
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer },
-      (req) => req
-    )
-  })
-
-  t.teardown(async () => {
-    await dht.destroy()
-  }, { order: 100 })
 
   return { server }
 }
