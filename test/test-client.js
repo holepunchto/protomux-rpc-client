@@ -11,7 +11,7 @@ const ProtomuxRpcClient = require('../lib/client')
 
 const DEBUG = false
 
-test('client can connect to DHT server exposing rpc', async t => {
+test('client can connect to DHT server exposing rpc', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -21,7 +21,7 @@ test('client can connect to DHT server exposing rpc', async t => {
   await client.close()
 })
 
-test('client can pass relayThrough opt', async t => {
+test('client can pass relayThrough opt', async (t) => {
   t.plan(2)
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
@@ -30,20 +30,26 @@ test('client can pass relayThrough opt', async t => {
     t.pass('connect through called')
     return null
   }
-  const client = await getClient(t, bootstrap, serverPubKey, { relayThrough, backoffValues: [5000, 15000, 60000, 300000] })
+  const client = await getClient(t, bootstrap, serverPubKey, {
+    relayThrough,
+    backoffValues: [5000, 15000, 60000, 300000]
+  })
 
   const res = await client.echo('ok')
   t.is(res, 'ok', 'happy path works')
 })
 
-test('client can use keyPair opt', async t => {
+test('client can use keyPair opt', async (t) => {
   t.plan(2)
 
   const bootstrap = await getBootstrap(t)
   const serverDht = new HyperDHT({ bootstrap })
-  t.teardown(async () => {
-    await serverDht.destroy()
-  }, { order: 900 })
+  t.teardown(
+    async () => {
+      await serverDht.destroy()
+    },
+    { order: 900 }
+  )
 
   const server = serverDht.createServer()
   await server.listen()
@@ -53,7 +59,7 @@ test('client can use keyPair opt', async t => {
   const accessKeyPair = HyperDHT.keyPair(accessSeed)
   const expectedPubKey = accessKeyPair.publicKey
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
     t.alike(c.remotePublicKey, expectedPubKey, 'uses keypair generated from seed')
 
@@ -73,27 +79,35 @@ test('client can use keyPair opt', async t => {
   t.is(res, 'ok', 'rpc works (sanity check)')
 })
 
-test('client timeout opt (connecting hangs)', async t => {
+test('client timeout opt (connecting hangs)', async (t) => {
   const bootstrap = await getBootstrap(t)
   const unavailableKey = b4a.from('a'.repeat(64), 'hex')
   const client = await getClient(t, bootstrap, unavailableKey)
 
   await t.exception(
-    async () => { await client.echo('ok', { timeout: 250 }) },
+    async () => {
+      await client.echo('ok', { timeout: 250 })
+    },
     /REQUEST_TIMEOUT:/,
     'Cannot connect => request timeout error'
   )
 
   const startTime = Date.now()
   await t.exception(
-    async () => { await client.makeRequest('echo', 'oh', { timeout: 1000, requestEncoding: cenc.string, responseEncoding: cenc.string }) },
+    async () => {
+      await client.makeRequest('echo', 'oh', {
+        timeout: 1000,
+        requestEncoding: cenc.string,
+        responseEncoding: cenc.string
+      })
+    },
     /REQUEST_TIMEOUT:/,
     'can specify timeout'
   )
   t.is(Date.now() > startTime + 500, true, 'can override timeout in makeRequest call')
 })
 
-test('client timeout opt (slow RPC)', async t => {
+test('client timeout opt (slow RPC)', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey, server } = await getServer(t, bootstrap, { delay: 1000 })
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -104,7 +118,9 @@ test('client timeout opt (slow RPC)', async t => {
   })
 
   await t.exception(
-    async () => { await client.echo('ok', { timeout: 250 }) },
+    async () => {
+      await client.echo('ok', { timeout: 250 })
+    },
     /TIMEOUT_EXCEEDED:/,
     'slow RPC => timeout'
   )
@@ -112,13 +128,15 @@ test('client timeout opt (slow RPC)', async t => {
   t.is(connected, true, 'the client did connect (sanity check)')
 })
 
-test('pending requests do not delay closing', async t => {
+test('pending requests do not delay closing', async (t) => {
   // If this test hangs on teardown, this indicates an issue with the cleanup logic
   // like pending timers etc (equivalent to a failing test)
 
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap, { delay: 1000 * 60 * 60 * 24 })
-  const client = await getClient(t, bootstrap, serverPubKey, { requestTimeout: 1000 * 60 * 60 * 24 })
+  const client = await getClient(t, bootstrap, serverPubKey, {
+    requestTimeout: 1000 * 60 * 60 * 24
+  })
 
   await client.connect()
 
@@ -127,7 +145,7 @@ test('pending requests do not delay closing', async t => {
   t.is(res[0].status, 'rejected', 'pending request rejects')
 })
 
-test('suspend/resume flow', async t => {
+test('suspend/resume flow', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -142,7 +160,7 @@ test('suspend/resume flow', async t => {
   t.is(res, 'ok', 'can send a request after resuming')
 })
 
-test('start suspended flow', async t => {
+test('start suspended flow', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey, { suspended: true })
@@ -160,7 +178,7 @@ test('start suspended flow', async t => {
   t.is(res, 'ok', 'correct response (sanity check)')
 })
 
-test('no connection opened when suspending before connecting', async t => {
+test('no connection opened when suspending before connecting', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -170,7 +188,7 @@ test('no connection opened when suspending before connecting', async t => {
   t.is(client.rpc, null, 'still no rpc setup after suspending')
 })
 
-test('request rejects if closed while suspended', async t => {
+test('request rejects if closed while suspended', async (t) => {
   t.plan(1)
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
@@ -178,39 +196,38 @@ test('request rejects if closed while suspended', async t => {
 
   await client.suspend()
   const p = client.echo('ok')
-  p.catch(e => {
+  p.catch((e) => {
     t.is(e.code, 'CLIENT_CLOSING', 'pending request rejects if client closes')
   })
-  await new Promise(resolve => setTimeout(resolve, 100))
+  await new Promise((resolve) => setTimeout(resolve, 100))
   await client.close()
 })
 
-test('request rejects if dht destroyed (no reconnect loop)', async t => {
+test('request rejects if dht destroyed (no reconnect loop)', async (t) => {
   t.plan(1)
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap)
   const client = await getClient(t, bootstrap, serverPubKey)
 
   await client.dht.destroy()
-  await t.exception(
-    async () => { await client.echo('ok') },
-    /DHT_DESTROYED:/
-  )
+  await t.exception(async () => {
+    await client.echo('ok')
+  }, /DHT_DESTROYED:/)
 })
 
-test('client can close also if it never connects', async t => {
+test('client can close also if it never connects', async (t) => {
   const bootstrap = await getBootstrap(t)
   const serverPubKey = b4a.from('a'.repeat(64), 'hex')
   const client = await getClient(t, bootstrap, serverPubKey)
 
   const p = client.echo('ok')
   p.catch(() => {})
-  await new Promise(resolve => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 500))
   await client.close()
   t.pass('closing did not hang')
 })
 
-test('can open rpcs with different id to same server', async t => {
+test('can open rpcs with different id to same server', async (t) => {
   const bootstrap = await getBootstrap(t)
   const extraIds = [b4a.from('1')]
   const { serverPubKey } = await getServer(t, bootstrap, { extraIds })
@@ -233,7 +250,7 @@ test('can open rpcs with different id to same server', async t => {
   }
 })
 
-test('can open rpcs with different protocol to same server', async t => {
+test('can open rpcs with different protocol to same server', async (t) => {
   const bootstrap = await getBootstrap(t)
   const { serverPubKey } = await getServer(t, bootstrap, { extraProtocols: ['extra-protocol'] })
   const client = await getClient(t, bootstrap, serverPubKey)
@@ -255,7 +272,7 @@ test('can open rpcs with different protocol to same server', async t => {
   }
 })
 
-test('no interactions if also replicating a corestore with the server peer', async t => {
+test('no interactions if also replicating a corestore with the server peer', async (t) => {
   const bootstrap = await getBootstrap(t)
   const store = new Corestore(await t.tmp())
   const serverSwarm = new Hyperswarm({ bootstrap })
@@ -263,9 +280,14 @@ test('no interactions if also replicating a corestore with the server peer', asy
   const core = store.get({ name: 'core' })
   await core.append('block0')
 
-  serverSwarm.on('connection', c => {
+  serverSwarm.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
-    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    if (DEBUG) {
+      c.on('close', () => {
+        console.log('(DEBUG) server connection closed')
+      })
+    }
+
     store.replicate(c)
 
     const rpc = new ProtomuxRPC(c, {
@@ -280,19 +302,25 @@ test('no interactions if also replicating a corestore with the server peer', asy
   })
   await serverSwarm.listen()
   serverSwarm.join(core.discoveryKey)
-  await new Promise(resolve => setTimeout(resolve, 500)) // TODO: should be a flush
+  await new Promise((resolve) => setTimeout(resolve, 500)) // TODO: should be a flush
 
   const serverPubKey = serverSwarm.keyPair.publicKey
 
   const clientStore = new Corestore(await t.tmp())
   const clientSwarm = new Hyperswarm({ bootstrap })
-  clientSwarm.on('connection', c => {
+  clientSwarm.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) client opened connection')
-    if (DEBUG) c.on('close', () => { console.log('(DEBUG) client connection closed') })
+    if (DEBUG) {
+      c.on('close', () => {
+        console.log('(DEBUG) client connection closed')
+      })
+    }
 
     clientStore.replicate(c)
   })
-  const client = new EchoClient(serverPubKey, clientSwarm.dht, { backoffValues: [5000, 15000, 60000, 300000] })
+  const client = new EchoClient(serverPubKey, clientSwarm.dht, {
+    backoffValues: [5000, 15000, 60000, 300000]
+  })
 
   const clientCore = clientStore.get(core.key)
   await clientCore.ready()
@@ -307,7 +335,11 @@ test('no interactions if also replicating a corestore with the server peer', asy
 
   await core.append('block1')
   const block1 = await clientCore.get(1)
-  t.is(b4a.toString(block1), 'block1', 'corestore replication not stopped when rpc connection closes')
+  t.is(
+    b4a.toString(block1),
+    'block1',
+    'corestore replication not stopped when rpc connection closes'
+  )
 
   await clientSwarm.destroy()
   await clientStore.close()
@@ -315,14 +347,19 @@ test('no interactions if also replicating a corestore with the server peer', asy
   await store.close()
 })
 
-test('client respects backoff when server disconnects before setting up RPC', async t => {
+test('client respects backoff when server disconnects before setting up RPC', async (t) => {
   const bootstrap = await getBootstrap(t)
   const serverDht = new HyperDHT({ bootstrap })
   const server = serverDht.createServer()
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
-    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    if (DEBUG) {
+      c.on('close', () => {
+        console.log('(DEBUG) server connection closed')
+      })
+    }
+
     c.destroy()
   })
   t.teardown(async () => {
@@ -330,7 +367,7 @@ test('client respects backoff when server disconnects before setting up RPC', as
   })
 
   await server.listen()
-  await new Promise(resolve => setTimeout(resolve, 500)) // TODO: should be a flush
+  await new Promise((resolve) => setTimeout(resolve, 500)) // TODO: should be a flush
   const { publicKey: serverPubKey } = server.address()
 
   const clientDht = new HyperDHT({ bootstrap })
@@ -350,14 +387,19 @@ test('client respects backoff when server disconnects before setting up RPC', as
   await clientDht.destroy()
 })
 
-test('client does not attempt reconnecting when connection is lost after the RPC is established', async t => {
+test('client does not attempt reconnecting when connection is lost after the RPC is established', async (t) => {
   const bootstrap = await getBootstrap(t)
   const serverDht = new HyperDHT({ bootstrap })
   const server = serverDht.createServer()
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
-    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    if (DEBUG) {
+      c.on('close', () => {
+        console.log('(DEBUG) server connection closed')
+      })
+    }
+
     const rpc = new ProtomuxRPC(c, {
       id: serverPubKey,
       valueEncoding: cenc.none
@@ -376,7 +418,7 @@ test('client does not attempt reconnecting when connection is lost after the RPC
   })
 
   await server.listen()
-  await new Promise(resolve => setTimeout(resolve, 200)) // TODO: should be a flush
+  await new Promise((resolve) => setTimeout(resolve, 200)) // TODO: should be a flush
   const { publicKey: serverPubKey } = server.address()
 
   const clientDht = new HyperDHT({ bootstrap })
@@ -388,7 +430,7 @@ test('client does not attempt reconnecting when connection is lost after the RPC
     t.is(e.code, 'CHANNEL_CLOSED')
   }
 
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
 
   t.is(client.stats.connection.attempts, 1, 'did not retry')
   t.is(client.stats.connection.opened, 1, 'did connect')
@@ -397,7 +439,7 @@ test('client does not attempt reconnecting when connection is lost after the RPC
   await clientDht.destroy()
 })
 
-async function getBootstrap (t) {
+async function getBootstrap(t) {
   const testnet = await getTestnet()
   const { bootstrap } = testnet
 
@@ -411,13 +453,13 @@ async function getBootstrap (t) {
   return bootstrap
 }
 
-async function getServer (t, bootstrap, { delay = null, extraIds = [], extraProtocols = [] } = {}) {
+async function getServer(t, bootstrap, { delay = null, extraIds = [], extraProtocols = [] } = {}) {
   const serverDht = new HyperDHT({ bootstrap })
   const server = serverDht.createServer()
   await server.listen()
   const { publicKey: serverPubKey } = server.address()
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
     const rpc = new ProtomuxRPC(c, {
       id: serverPubKey,
@@ -427,7 +469,7 @@ async function getServer (t, bootstrap, { delay = null, extraIds = [], extraProt
       'echo',
       { requestEncoding: cenc.string, responseEncoding: cenc.string },
       async (req) => {
-        if (delay) await new Promise(resolve => setTimeout(resolve, delay))
+        if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
         return req
       }
     )
@@ -441,7 +483,7 @@ async function getServer (t, bootstrap, { delay = null, extraIds = [], extraProt
         'echo',
         { requestEncoding: cenc.string, responseEncoding: cenc.string },
         async (req) => {
-          if (delay) await new Promise(resolve => setTimeout(resolve, delay))
+          if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
           return `Id: ${id} res: ${req}`
         }
       )
@@ -457,23 +499,38 @@ async function getServer (t, bootstrap, { delay = null, extraIds = [], extraProt
         'echo',
         { requestEncoding: cenc.string, responseEncoding: cenc.string },
         async (req) => {
-          if (delay) await new Promise(resolve => setTimeout(resolve, delay))
+          if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
           return `Protocol: ${protocol} res: ${req}`
         }
       )
     }
   })
 
-  t.teardown(async () => {
-    await serverDht.destroy()
-  }, { order: 900 })
+  t.teardown(
+    async () => {
+      await serverDht.destroy()
+    },
+    { order: 900 }
+  )
 
   return { server, serverDht, serverPubKey }
 }
 
-async function getClient (t, bootstrap, serverPubKey, { id, relayThrough, accessKeyPair, suspended, protocol } = {}) {
+async function getClient(
+  t,
+  bootstrap,
+  serverPubKey,
+  { id, relayThrough, accessKeyPair, suspended, protocol } = {}
+) {
   const dht = new HyperDHT({ bootstrap })
-  const client = new EchoClient(serverPubKey, dht, { id, keyPair: accessKeyPair, protocol, relayThrough, suspended, backoffValues: [5000, 15000, 60000, 300000] })
+  const client = new EchoClient(serverPubKey, dht, {
+    id,
+    keyPair: accessKeyPair,
+    protocol,
+    relayThrough,
+    suspended,
+    backoffValues: [5000, 15000, 60000, 300000]
+  })
 
   t.teardown(async () => {
     await client.close()
@@ -484,11 +541,11 @@ async function getClient (t, bootstrap, serverPubKey, { id, relayThrough, access
 }
 
 class EchoClient extends ProtomuxRpcClient {
-  async echo (text, opts = {}) {
-    return await this.makeRequest(
-      'echo',
-      text,
-      { requestEncoding: cenc.string, responseEncoding: cenc.string, ...opts }
-    )
+  async echo(text, opts = {}) {
+    return await this.makeRequest('echo', text, {
+      requestEncoding: cenc.string,
+      responseEncoding: cenc.string,
+      ...opts
+    })
   }
 }

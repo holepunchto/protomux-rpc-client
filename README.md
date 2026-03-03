@@ -3,6 +3,7 @@
 Connect to [HyperDHT](https://github.com/holepunchto/hyperdht) servers exposing [protomux-rpc](https://github.com/holepunchto/protomux-rpc) endpoints.
 
 Manages connection state for you:
+
 - Connections are opened lazily, when the first request is made
 - The client will try re-connecting when the connection is lost
 - Connections are automatically garbage-collected after a period of inactivity
@@ -27,6 +28,7 @@ For a cleaner approach, define a new class which exposes the available methods, 
 Create a new Protomux RPC Client instance. `dht` is a hyperDHT instance.
 
 `opts` include:
+
 - `keyPair`: use a specific keyPair to connect to the server, instead of the default one of the DHT instance.
 - `relayThrough`: a function passed on to HyperDHT's `connect` method, to help relay when relevant. Default: `null`.
 - `backoffValues`: an array of millisecond delays on reconnection attempts. The delay values are jittered. Default: `[5000, 15000, 60000, 300000]`.

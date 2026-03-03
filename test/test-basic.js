@@ -11,7 +11,7 @@ const ProtomuxRpcConnection = require('../lib/client')
 
 const DEBUG = false
 
-test('stateless RPC connection lifecycle', async t => {
+test('stateless RPC connection lifecycle', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server, getNrCons } = await setupRpcServer(t, bootstrap)
 
@@ -23,22 +23,18 @@ test('stateless RPC connection lifecycle', async t => {
   })
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'hi', 'rpc request processed successfully')
     t.is(getNrCons(), 1, '1 connection opened')
   }
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('ho'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('ho'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'ho', 'rpc request processed successfully')
     t.is(getNrCons(), 1, 'connection re-used')
   }
@@ -48,7 +44,7 @@ test('stateless RPC connection lifecycle', async t => {
   t.is(statelessRpc.nrConnections, 0, 'cleaned up clients')
 })
 
-test('stateless RPC no cleanup if active requests', async t => {
+test('stateless RPC no cleanup if active requests', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server, getNrCons } = await setupRpcServer(t, bootstrap, { msDelay: 1000 })
 
@@ -65,12 +61,10 @@ test('stateless RPC no cleanup if active requests', async t => {
   })
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(didGc, false, 'gc did not run while a request was pending')
     t.is(b4a.toString(res), 'hi', 'rpc request processed successfully')
     t.is(getNrCons(), 1, '1 connection opened')
@@ -81,7 +75,7 @@ test('stateless RPC no cleanup if active requests', async t => {
   t.is(statelessRpc.nrConnections, 0, 'cleaned up clients')
 })
 
-test('stateless RPC with multiple servers', async t => {
+test('stateless RPC with multiple servers', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server } = await setupRpcServer(t, bootstrap)
   const { server: server2 } = await setupRpcServer(t, bootstrap)
@@ -94,41 +88,32 @@ test('stateless RPC with multiple servers', async t => {
   })
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'hi', 'rpc request processed successfully')
   }
   {
-    const res = await statelessRpc.makeRequest(
-      server2.publicKey,
-      'echo',
-      b4a.from('ho'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server2.publicKey, 'echo', b4a.from('ho'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'ho', 'rpc request processed successfully')
     t.is(statelessRpc.nrConnections, 2, 'additional client opened')
   }
   // keep the second client open for now
-  const server2Int = setInterval(
-    async () => {
-      try {
-        await statelessRpc.makeRequest(
-          server2.publicKey,
-          'echo',
-          b4a.from('ho'),
-          { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-        )
-      } catch (e) {
-        console.error(e)
-        t.fail('could not make request to 2nd server (likely a test bug)')
-      }
-    },
-    250
-  )
+  const server2Int = setInterval(async () => {
+    try {
+      await statelessRpc.makeRequest(server2.publicKey, 'echo', b4a.from('ho'), {
+        requestEncoding: cenc.buffer,
+        responseEncoding: cenc.buffer
+      })
+    } catch (e) {
+      console.error(e)
+      t.fail('could not make request to 2nd server (likely a test bug)')
+    }
+  }, 250)
 
   {
     const [nrCleared] = await once(statelessRpc, 'gc')
@@ -144,7 +129,7 @@ test('stateless RPC with multiple servers', async t => {
   }
 })
 
-test('stateless RPC suspend and resume', async t => {
+test('stateless RPC suspend and resume', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server } = await setupRpcServer(t, bootstrap)
 
@@ -156,12 +141,10 @@ test('stateless RPC suspend and resume', async t => {
   })
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'hi', 'rpc request processed successfully')
   }
 
@@ -172,7 +155,7 @@ test('stateless RPC suspend and resume', async t => {
   t.is([...statelessRpc._clientRefs.values()][0].client.suspended, false, 'resume resumes clients')
 })
 
-test('stateless RPC can init client suspended', async t => {
+test('stateless RPC can init client suspended', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server } = await setupRpcServer(t, bootstrap)
 
@@ -185,21 +168,20 @@ test('stateless RPC can init client suspended', async t => {
   await statelessRpc.ready()
   t.is(statelessRpc.suspended, true, 'starts suspended')
 
-  setTimeout(
-    async () => await statelessRpc.resume(),
-    500
-  )
+  setTimeout(async () => await statelessRpc.resume(), 500)
 
   {
-    const prom = statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const prom = statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
 
     // DEVNOTE: this test can break if we do not get the client sync
-    t.is([...statelessRpc._clientRefs.values()][0].client.suspended, true, 'client starts suspended')
+    t.is(
+      [...statelessRpc._clientRefs.values()][0].client.suspended,
+      true,
+      'client starts suspended'
+    )
 
     const res = await prom
     t.is(b4a.toString(res), 'hi', 'rpc request processed successfully')
@@ -207,7 +189,7 @@ test('stateless RPC can init client suspended', async t => {
   }
 })
 
-test('relayThrough opt', async t => {
+test('relayThrough opt', async (t) => {
   t.plan(2)
   const bootstrap = await setupTestnet(t)
   const { server } = await setupRpcServer(t, bootstrap)
@@ -219,23 +201,24 @@ test('relayThrough opt', async t => {
 
   const { rpcClient } = getRpcClient(t, bootstrap, { relayThrough })
 
-  const res = await rpcClient.makeRequest(
-    server.publicKey,
-    'echo',
-    'hi',
-    { requestEncoding: cenc.string, responseEncoding: cenc.string }
-  )
+  const res = await rpcClient.makeRequest(server.publicKey, 'echo', 'hi', {
+    requestEncoding: cenc.string,
+    responseEncoding: cenc.string
+  })
   t.is(res, 'hi', 'sanity check')
 })
 
-test('keyPair opt', async t => {
+test('keyPair opt', async (t) => {
   t.plan(2)
 
   const bootstrap = await setupTestnet(t)
   const serverDht = new HyperDHT({ bootstrap })
-  t.teardown(async () => {
-    await serverDht.destroy()
-  }, { order: 900 })
+  t.teardown(
+    async () => {
+      await serverDht.destroy()
+    },
+    { order: 900 }
+  )
 
   const server = serverDht.createServer()
   await server.listen()
@@ -244,7 +227,7 @@ test('keyPair opt', async t => {
   const keyPair = HyperDHT.keyPair(b4a.from('c'.repeat(64), 'hex'))
   const expectedPubKey = keyPair.publicKey
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
     t.alike(c.remotePublicKey, expectedPubKey, 'uses keypair generated from seed')
 
@@ -261,16 +244,14 @@ test('keyPair opt', async t => {
 
   const { rpcClient } = getRpcClient(t, bootstrap, { keyPair })
 
-  const res = await rpcClient.makeRequest(
-    server.publicKey,
-    'echo',
-    'hi',
-    { requestEncoding: cenc.string, responseEncoding: cenc.string }
-  )
+  const res = await rpcClient.makeRequest(server.publicKey, 'echo', 'hi', {
+    requestEncoding: cenc.string,
+    responseEncoding: cenc.string
+  })
   t.is(res, 'hi', 'sanity check')
 })
 
-test('requestTimeout opt', async t => {
+test('requestTimeout opt', async (t) => {
   const bootstrap = await setupTestnet(t)
   const unavailableKey = b4a.from('a'.repeat(64), 'hex')
   const { rpcClient } = getRpcClient(t, bootstrap, { requestTimeout: 50 })
@@ -278,7 +259,9 @@ test('requestTimeout opt', async t => {
   {
     const startTime = Date.now()
     await t.exception(
-      async () => { await rpcClient.makeRequest(unavailableKey, 'echo', 'hi') },
+      async () => {
+        await rpcClient.makeRequest(unavailableKey, 'echo', 'hi')
+      },
       /REQUEST_TIMEOUT:/,
       'Cannot connect => request timeout error'
     )
@@ -288,7 +271,9 @@ test('requestTimeout opt', async t => {
   {
     const startTime = Date.now()
     await t.exception(
-      async () => { await rpcClient.makeRequest(unavailableKey, 'echo', 'oh', { timeout: 700 }) },
+      async () => {
+        await rpcClient.makeRequest(unavailableKey, 'echo', 'oh', { timeout: 700 })
+      },
       /REQUEST_TIMEOUT:/,
       'can specify timeout'
     )
@@ -296,7 +281,7 @@ test('requestTimeout opt', async t => {
   }
 })
 
-test('concurrent requests opt', async t => {
+test('concurrent requests opt', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { rpcClient } = getRpcClient(t, bootstrap, { maxConcurrentPerService: 4 })
   const { server } = await setupRpcServer(t, bootstrap, { msDelay: 500 })
@@ -312,19 +297,22 @@ test('concurrent requests opt', async t => {
     requestFinishedCount++
   })
 
-  await new Promise(resolve => setTimeout(resolve, 750))
+  await new Promise((resolve) => setTimeout(resolve, 750))
 
   t.is(requestFinishedCount, 4, 'only 4 requests finished')
 
-  await new Promise(resolve => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 500))
 
   t.is(requestFinishedCount, 6, 'all requests finished')
 })
 
-test('One server exposing multiple rpc services', async t => {
+test('One server exposing multiple rpc services', async (t) => {
   const bootstrap = await setupTestnet(t)
   const extraIds = [b4a.from('1')]
-  const { server, getNrCons } = await setupRpcServer(t, bootstrap, { extraIds, extraProtocols: ['extra-protocol'] })
+  const { server, getNrCons } = await setupRpcServer(t, bootstrap, {
+    extraIds,
+    extraProtocols: ['extra-protocol']
+  })
 
   const clientDht = new HyperDHT({ bootstrap })
   const statelessRpc = new ProtomuxRpcClient(clientDht, { msGcInterval: 500 })
@@ -334,35 +322,35 @@ test('One server exposing multiple rpc services', async t => {
   })
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'hi', 'default protocol and id')
     t.is(getNrCons(), 1, '1 connection opened')
   }
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { id: extraIds[0], requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
-    )
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      id: extraIds[0],
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
     t.is(b4a.toString(res), 'Id: 1 res: hi', 'rpc request processed successfully')
     t.is(getNrCons(), 2, 'separate connection')
   }
 
   {
-    const res = await statelessRpc.makeRequest(
-      server.publicKey,
-      'echo',
-      b4a.from('hi'),
-      { protocol: 'extra-protocol', requestEncoding: cenc.buffer, responseEncoding: cenc.buffer }
+    const res = await statelessRpc.makeRequest(server.publicKey, 'echo', b4a.from('hi'), {
+      protocol: 'extra-protocol',
+      requestEncoding: cenc.buffer,
+      responseEncoding: cenc.buffer
+    })
+    t.is(
+      b4a.toString(res),
+      'Protocol: extra-protocol res: hi',
+      'rpc request processed successfully'
     )
-    t.is(b4a.toString(res), 'Protocol: extra-protocol res: hi', 'rpc request processed successfully')
     t.is(getNrCons(), 3, 'separate connection')
   }
 })
@@ -381,14 +369,18 @@ test('client has same stats as the overall object', async (t) => {
   await clientDht.destroy()
 })
 
-test('client stays connected on RPC errors', async t => {
+test('client stays connected on RPC errors', async (t) => {
   const bootstrap = await setupTestnet(t)
   const serverDht = new HyperDHT({ bootstrap })
   const server = serverDht.createServer()
 
-  server.on('connection', c => {
+  server.on('connection', (c) => {
     if (DEBUG) console.log('(DEBUG) server opened connection')
-    if (DEBUG) c.on('close', () => { console.log('(DEBUG) server connection closed') })
+    if (DEBUG) {
+      c.on('close', () => {
+        console.log('(DEBUG) server connection closed')
+      })
+    }
 
     const rpc = new ProtomuxRPC(c, {
       id: serverPubKey,
@@ -408,7 +400,7 @@ test('client stays connected on RPC errors', async t => {
   })
 
   await server.listen()
-  await new Promise(resolve => setTimeout(resolve, 500)) // TODO: should be a flush
+  await new Promise((resolve) => setTimeout(resolve, 500)) // TODO: should be a flush
   const { publicKey: serverPubKey } = server.address()
 
   const clientDht = new HyperDHT({ bootstrap })
@@ -419,17 +411,26 @@ test('client stays connected on RPC errors', async t => {
   })
 
   try {
-    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', {
+      requestEncoding: cenc.string,
+      responseEncoding: cenc.string
+    })
   } catch (e) {
     e.cause.message.includes('oops')
   }
   try {
-    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', {
+      requestEncoding: cenc.string,
+      responseEncoding: cenc.string
+    })
   } catch (e) {
     e.cause.message.includes('oops')
   }
   try {
-    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', { requestEncoding: cenc.string, responseEncoding: cenc.string })
+    await statelessRpc.makeRequest(serverPubKey, 'error-me', 'somestring', {
+      requestEncoding: cenc.string,
+      responseEncoding: cenc.string
+    })
   } catch (e) {
     e.cause.message.includes('oops')
   }
@@ -438,27 +439,37 @@ test('client stays connected on RPC errors', async t => {
   t.is(statelessRpc.stats.requests.sent, 3)
 })
 
-function getRpcClient (t, bootstrap, opts = {}) {
+function getRpcClient(t, bootstrap, opts = {}) {
   const dht = new HyperDHT({ bootstrap })
   const rpcClient = new ProtomuxRpcClient(dht, opts)
 
-  t.teardown(async () => {
-    await rpcClient.close()
-    await dht.destroy()
-  }, { order: 1 })
+  t.teardown(
+    async () => {
+      await rpcClient.close()
+      await dht.destroy()
+    },
+    { order: 1 }
+  )
 
   return { rpcClient, dht }
 }
 
-async function setupTestnet (t) {
+async function setupTestnet(t) {
   const testnet = await createTestnet()
-  t.teardown(async () => {
-    await testnet.destroy()
-  }, { order: 1000_000 })
+  t.teardown(
+    async () => {
+      await testnet.destroy()
+    },
+    { order: 1000_000 }
+  )
   return testnet.bootstrap
 }
 
-async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extraProtocols = [] } = {}) {
+async function setupRpcServer(
+  t,
+  bootstrap,
+  { msDelay = 0, extraIds = [], extraProtocols = [] } = {}
+) {
   const dht = new HyperDHT({ bootstrap })
   const server = dht.createServer()
 
@@ -467,22 +478,23 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extra
 
   let nrCons = 0
 
-  server.on('connection', conn => {
+  server.on('connection', (conn) => {
     if (DEBUG) {
       console.log('RPC connection received')
-      conn.on('close', () => { console.log('RPC connection closed') })
+      conn.on('close', () => {
+        console.log('RPC connection closed')
+      })
     }
     nrCons++
     const rpc = new ProtomuxRPC(conn, {
       id: serverPubKey,
       valueEncoding: cenc.none
-
     })
     rpc.respond(
       'echo',
       { requestEncoding: cenc.buffer, responseEncoding: cenc.buffer },
       async (req) => {
-        if (msDelay > 0) await new Promise(resolve => setTimeout(resolve, msDelay))
+        if (msDelay > 0) await new Promise((resolve) => setTimeout(resolve, msDelay))
         return req
       }
     )
@@ -496,7 +508,7 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extra
         'echo',
         { requestEncoding: cenc.string, responseEncoding: cenc.string },
         async (req) => {
-          if (msDelay) await new Promise(resolve => setTimeout(resolve, msDelay))
+          if (msDelay) await new Promise((resolve) => setTimeout(resolve, msDelay))
           return `Id: ${id} res: ${req}`
         }
       )
@@ -512,16 +524,19 @@ async function setupRpcServer (t, bootstrap, { msDelay = 0, extraIds = [], extra
         'echo',
         { requestEncoding: cenc.string, responseEncoding: cenc.string },
         async (req) => {
-          if (msDelay) await new Promise(resolve => setTimeout(resolve, msDelay))
+          if (msDelay) await new Promise((resolve) => setTimeout(resolve, msDelay))
           return `Protocol: ${protocol} res: ${req}`
         }
       )
     }
   })
 
-  t.teardown(async () => {
-    await dht.destroy()
-  }, { order: 100 })
+  t.teardown(
+    async () => {
+      await dht.destroy()
+    },
+    { order: 100 }
+  )
 
   return { server, getNrCons: () => nrCons }
 }
