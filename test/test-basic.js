@@ -44,6 +44,46 @@ test('stateless RPC connection lifecycle', async (t) => {
   t.is(statelessRpc.nrConnections, 0, 'cleaned up clients')
 })
 
+test('event method', async (t) => {
+  t.plan(3)
+
+  const bootstrap = await setupTestnet(t)
+
+  const serverDht = new HyperDHT({ bootstrap })
+  const server = serverDht.createServer()
+  await server.listen()
+  const { publicKey: serverPubKey } = server.address()
+
+  t.teardown(async () => {
+    await serverDht.destroy()
+  })
+
+  let rpcClient = null
+  server.on('connection', (conn) => {
+    const rpc = new ProtomuxRPC(conn, {
+      id: serverPubKey,
+      valueEncoding: cenc.none
+    })
+    rpc.respond('greet', { requestEncoding: cenc.string }, (req) => {
+      t.is(req, 'hi')
+      t.is(rpcClient.stats.events.sent, 1, 'event stats sent incremented')
+      t.is(rpcClient.stats.requests.sent, 0, 'event does not affect request stats')
+    })
+  })
+
+  const clientDht = new HyperDHT({ bootstrap })
+  rpcClient = new ProtomuxRpcClient(clientDht)
+
+  t.teardown(async () => {
+    await rpcClient.close()
+    await clientDht.destroy()
+  })
+
+  rpcClient.event(serverPubKey, 'greet', 'hi', {
+    requestEncoding: cenc.string
+  })
+})
+
 test('stateless RPC no cleanup if active requests', async (t) => {
   const bootstrap = await setupTestnet(t)
   const { server, getNrCons } = await setupRpcServer(t, bootstrap, { msDelay: 1000 })
