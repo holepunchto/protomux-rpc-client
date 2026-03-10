@@ -58,6 +58,9 @@ class ProtomuxRpcClient extends SuspendResource {
       requests: {
         sent: 0,
         success: 0
+      },
+      events: {
+        sent: 0
       }
     }
     this._clientRefs = new Map()
@@ -167,6 +170,21 @@ class ProtomuxRpcClient extends SuspendResource {
     } finally {
       ref.unref()
     }
+  }
+
+  async _event(key, methodName, args, { requestEncoding, protocol, id }) {
+    if (!this.opened) await this.ready()
+
+    const ref = this._getClient(key, protocol, id)
+    try {
+      await ref.client.event(methodName, args, { requestEncoding })
+    } finally {
+      ref.unref()
+    }
+  }
+
+  event(key, methodName, args, { requestEncoding, protocol, id } = {}) {
+    this._event(key, methodName, args, { requestEncoding, protocol, id }).catch(safetyCatch)
   }
 }
 

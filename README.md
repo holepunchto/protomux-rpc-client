@@ -75,6 +75,20 @@ Options:
 }
 ```
 
+#### `client.event(key, methodName, args, opts)`
+
+Creates a fire-and-forget event call. The `key`, `methodName`, and `args` parameters follow the same contract as `client.makeRequest(...)`.
+
+Options:
+
+```
+{
+  requestEncoding, // Used to encode the `args`. Default: the protomux-rpc default.
+  id, // id of the protomux-rpc service
+  protocol // protocol of the protomux-rpc service. Defaults to the server's public key.
+}
+```
+
 #### `await client.suspend()`
 
 Suspends all open RPC clients, destroying their RPC channel.
