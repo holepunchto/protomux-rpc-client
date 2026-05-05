@@ -36,7 +36,7 @@
     "protomux-rpc-router": "1.2.0"
   },
   "dependencies": {
-    "compact-encoding": "^2.16.0",
+    "compact-encoding": "^3.0.0",
     "hypercore-id-encoding": "^1.3.0",
     "hyperswarm-capability": "^1.1.1",
     "protomux-rpc": "^1.7.1",
